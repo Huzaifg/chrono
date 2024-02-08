@@ -74,8 +74,9 @@ double granular_thickness = 0.35;
 double granular_height = 0.25;
 double granular_width = 1.4;
 
-// SPH Particles start from this coordinate
-double granular_x = 0.4;
+// SPH Particles box left bottom corner coordinates
+// The constant is just to ensure the SPH particles don't intersect with the baffle BCE markers
+double granular_x = baffle1_x - baffle_thickness / 2 - granular_thickness - 0.005;
 double granular_y = baffle1_y - baffle_width / 2;
 double granular_z = 0.0;
 
@@ -85,6 +86,10 @@ double t_end = 1.0;
 // Enable/disable run-time visualization
 bool render = true;
 float render_fps = 1000;
+
+// Marker viz
+bool enableBoundaryMarkers = true;
+bool enableRigidBodyMarkers = true;
 
 //------------------------------------------------------------------
 // Create the objects of the MBD system. BCE markers added next to
@@ -137,15 +142,14 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
     sysMBS.AddBody(baffle1);
 
     // Add collision geometry for the baffle
-    chrono::utils::AddBoxGeometry(baffle1.get(), cmaterial,
-                                  ChVector<>(baffle_width / 2., baffle_thickness / 2., baffle_height / 2.),
+    chrono::utils::AddBoxGeometry(baffle1.get(), cmaterial, ChVector<>(baffle_thickness, baffle_width, baffle_height),
                                   ChVector<>(0., 0., 0.), QUNIT);
     baffle1->SetCollide(true);
 
     // Add BCE particles attached on the baffle into FSI system
     sysFSI.AddBoxBCE(baffle1,  //
                      ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
-                     ChVector<>(baffle_width / 2., baffle_thickness / 2., baffle_height / 2.), true);
+                     ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
     // Add as FSI Body
     sysFSI.AddFsiBody(baffle1);
 
@@ -158,15 +162,14 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
     sysMBS.AddBody(baffle2);
 
     // Add collision geometry for the baffle
-    chrono::utils::AddBoxGeometry(baffle2.get(), cmaterial,
-                                  ChVector<>(baffle_thickness / 2., baffle_width / 2., baffle_height / 2.),
+    chrono::utils::AddBoxGeometry(baffle2.get(), cmaterial, ChVector<>(baffle_thickness, baffle_width, baffle_height),
                                   ChVector<>(0., 0., 0.), QUNIT);
     baffle2->SetCollide(true);
 
     // Add BCE particles attached on the baffle into FSI system
     sysFSI.AddBoxBCE(baffle2,  //
                      ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
-                     ChVector<>(baffle_thickness / 2., baffle_width / 2., baffle_height / 2.), true);
+                     ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
     sysFSI.AddFsiBody(baffle2);
 
     // Baffle 3
@@ -178,15 +181,14 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
     sysMBS.AddBody(baffle3);
 
     // Add collision geometry for the baffle
-    chrono::utils::AddBoxGeometry(baffle3.get(), cmaterial,
-                                  ChVector<>(baffle_thickness / 2., baffle_width / 2., baffle_height / 2.),
+    chrono::utils::AddBoxGeometry(baffle3.get(), cmaterial, ChVector<>(baffle_thickness, baffle_width, baffle_height),
                                   ChVector<>(0., 0., 0.), QUNIT);
     baffle3->SetCollide(true);
 
     // Add BCE particles attached on the baffle into FSI system
     sysFSI.AddBoxBCE(baffle3,  //
                      ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
-                     ChVector<>(baffle_thickness / 2., baffle_width / 2., baffle_height / 2.), true);
+                     ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
     sysFSI.AddFsiBody(baffle3);
 }
 
@@ -216,8 +218,7 @@ int main(int argc, char* argv[]) {
 
     sysMBS.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
 
-    // TODO : Check these JSON files and change them accordingly
-    std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_CylinderDrop_Explicit.json");
+    std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow.json");
     if (argc == 1) {
         std::cout << "Use the default JSON file" << std::endl;
     } else if (argc == 2) {
@@ -241,7 +242,6 @@ int main(int argc, char* argv[]) {
     chrono::utils::GridSampler<> sampler(initSpace0);
 
     // Use a chrono sampler to create a bucket of granular material
-    // TODO : Move these values as variables to the top
     ChVector<> boxCenter(granular_x + 0.5 * granular_thickness, granular_y + 0.5 * granular_width,
                          granular_z + 0.5 * granular_height);
     ChVector<> boxHalfDim(0.5 * granular_thickness, 0.5 * granular_width, 0.5 * granular_height);
@@ -254,7 +254,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < numPart; i++) {
         double pre_ini = sysFSI.GetDensity() * gz * (-points[i].z() + bzDim);
         double rho_ini = sysFSI.GetDensity() + pre_ini / (sysFSI.GetSoundSpeed() * sysFSI.GetSoundSpeed());
-        sysFSI.AddSPHParticle(points[i], rho_ini, pre_ini, sysFSI.GetViscosity(), ChVector<>(0));
+        sysFSI.AddSPHParticle(points[i], rho_ini, pre_ini, sysFSI.GetViscosity(), ChVector<>(2, 0, 0));
     }
 
     // Create MBD and BCE particles for the solid domain
@@ -278,8 +278,8 @@ int main(int argc, char* argv[]) {
     visFSI->SetSize(1280, 720);
     visFSI->AddCamera(origin - ChVector<>(2 * bxDim, 2 * byDim, 0), origin);
     visFSI->SetCameraMoveScale(0.1f);
-    visFSI->EnableBoundaryMarkers(true);
-    visFSI->EnableRigidBodyMarkers(true);
+    visFSI->EnableBoundaryMarkers(enableBoundaryMarkers);
+    visFSI->EnableRigidBodyMarkers(enableRigidBodyMarkers);
     visFSI->SetRenderMode(ChFsiVisualization::RenderMode::SOLID);
     visFSI->SetParticleRenderMode(ChFsiVisualization::RenderMode::SOLID);
     visFSI->SetSPHColorCallback(chrono_types::make_shared<HeightColorCallback>(0, 1.2));
