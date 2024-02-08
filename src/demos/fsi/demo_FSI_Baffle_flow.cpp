@@ -69,6 +69,11 @@ double baffle3_x = 1.275;
 double baffle3_y = 1.0;
 double baffle3_z = 0;  // Base is on the ground
 
+// SPH Particles Initial Position
+double granular_x = 0.5;
+double granular_y = 0.5;
+double granular_z = 0.45;
+
 // Final simulation time
 double t_end = 1.0;
 
@@ -137,7 +142,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
                               ChVector<>(baffle_width / 2., baffle_thickness / 2., baffle_height / 2.),
                               ChVector<int>(2, 2, 2));
     // Add as FSI Body
-    sysFSI.AddFsiBody(baffle1);
+    // sysFSI.AddFsiBody(baffle1);
 
     // Baffle 2
     auto baffle2 = chrono_types::make_shared<ChBody>();
@@ -158,7 +163,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
                               ChFrame<>(ChVector<>(baffle2_x, baffle2_y, baffle2_z + baffle_height / 2.), QUNIT),
                               ChVector<>(baffle_thickness / 2., baffle_width / 2., baffle_height / 2.),
                               ChVector<int>(2, 2, 2));
-    sysFSI.AddFsiBody(baffle2);
+    // sysFSI.AddFsiBody(baffle2);
 
     // Baffle 3
     auto baffle3 = chrono_types::make_shared<ChBody>();
@@ -179,7 +184,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
                               ChFrame<>(ChVector<>(baffle3_x, baffle3_y, baffle3_z + baffle_height / 2.), QUNIT),
                               ChVector<>(baffle_thickness / 2., baffle_width / 2., baffle_height / 2.),
                               ChVector<int>(2, 2, 2));
-    sysFSI.AddFsiBody(baffle3);
+    // sysFSI.AddFsiBody(baffle3);
 }
 
 // =============================================================================
@@ -234,8 +239,8 @@ int main(int argc, char* argv[]) {
 
     // Use a chrono sampler to create a bucket of granular material
     // TODO : Move these values as variables to the top
-    ChVector<> boxCenter(0.4 + (0.35 / 2.), 1.4 / 2., 0.25 / 2.);
-    ChVector<> boxHalfDim(0.35 / 2, 1.4 / 2, 0.25 / 2);
+    ChVector<> boxCenter(granular_x, granular_y, granular_z);
+    ChVector<> boxHalfDim(granular_x + 0.5, granular_y + 0.5, granular_z + 0.05);
     std::vector<ChVector<>> points = sampler.SampleBox(boxCenter, boxHalfDim);
 
     // Add SPH particles from the sampler points to the FSI system
@@ -269,7 +274,7 @@ int main(int argc, char* argv[]) {
     visFSI->SetSize(1280, 720);
     visFSI->AddCamera(origin - ChVector<>(2 * bxDim, 2 * byDim, 0), origin);
     visFSI->SetCameraMoveScale(0.1f);
-    visFSI->EnableBoundaryMarkers(false);
+    visFSI->EnableBoundaryMarkers(true);
     visFSI->EnableRigidBodyMarkers(true);
     visFSI->SetRenderMode(ChFsiVisualization::RenderMode::SOLID);
     visFSI->SetParticleRenderMode(ChFsiVisualization::RenderMode::SOLID);
