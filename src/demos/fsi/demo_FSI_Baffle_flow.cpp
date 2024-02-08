@@ -88,7 +88,7 @@ bool render = true;
 float render_fps = 1000;
 
 // Marker viz
-bool enableBoundaryMarkers = true;
+bool enableBoundaryMarkers = false;
 bool enableRigidBodyMarkers = true;
 
 //------------------------------------------------------------------
@@ -276,7 +276,7 @@ int main(int argc, char* argv[]) {
     auto origin = sysMBS.Get_bodylist()[0]->GetPos();
     visFSI->SetTitle("Chrono::FSI Baffle Flow");
     visFSI->SetSize(1280, 720);
-    visFSI->AddCamera(origin - ChVector<>(2 * bxDim, 2 * byDim, 0), origin);
+    visFSI->AddCamera(ChVector<>(bxDim + 0.75, 0, bzDim + 0.5), ChVector<>(2 * granular_x, 3 * granular_y , granular_z));
     visFSI->SetCameraMoveScale(0.1f);
     visFSI->EnableBoundaryMarkers(enableBoundaryMarkers);
     visFSI->EnableRigidBodyMarkers(enableRigidBodyMarkers);
