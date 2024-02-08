@@ -9,6 +9,7 @@ set(DEMOS ${DEMOS}
    demo_FSI_SingleWheelTest
    demo_FSI_BCE
    demo_FSI_CylinderDrop
+   demo_FSI_Baffle_flow
 )
 
 if(ENABLE_MODULE_PARDISO_MKL)
