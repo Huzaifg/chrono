@@ -15,19 +15,19 @@
         "Shifting Coefficient": 1.0
     },
     "Time Stepping": {
-        "Fluid time step": 2.5e-4,
-        "Solid time step": 2.5e-4,
-        "Maximum time step": 2.5e-4
+        "Fluid time step": 1e-5,
+        "Solid time step": 1e-5,
+        "Maximum time step": 1e-5
     },
     "Elastic SPH": {
         "Poisson ratio": 0.3,
-        "Young modulus": 2.0e9,
+        "Young modulus": 2e9,
         "Artificial viscosity alpha": 0.5,
         "Artificial viscosity beta": 0.0,
         "I0": 0.03,
         "mu_s": 0.7,
         "mu_2": 0.7,
-        "particle diameter": 0.005,
+        "particle diameter": 0.0614,
         "kernel threshold": 0.8
     },
     "Settling Time": 0.0
