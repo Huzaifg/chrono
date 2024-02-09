@@ -40,7 +40,7 @@ using namespace chrono::fsi;
 ChVisualSystem::Type vis_type = ChVisualSystem::Type::VSG;
 
 // Output directories and settings
-const std::string out_dir = GetChronoOutputPath() + "BAFFLE_FLOW/";
+const std::string out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TEST/";
 
 // Output frequency
 bool output = true;
@@ -218,7 +218,7 @@ int main(int argc, char* argv[]) {
 
     sysMBS.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
 
-    std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow.json");
+    std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_test.json");
     if (argc == 1) {
         std::cout << "Use the default JSON file" << std::endl;
     } else if (argc == 2) {
@@ -276,7 +276,7 @@ int main(int argc, char* argv[]) {
     auto origin = sysMBS.Get_bodylist()[0]->GetPos();
     visFSI->SetTitle("Chrono::FSI Baffle Flow");
     visFSI->SetSize(1280, 720);
-    visFSI->AddCamera(ChVector<>(bxDim + 0.75, 0, bzDim + 0.5), ChVector<>(2 * granular_x, 3 * granular_y , granular_z));
+    visFSI->AddCamera(ChVector<>(bxDim + 0.75, 0, bzDim + 0.5), ChVector<>(2 * granular_x, 3 * granular_y, granular_z));
     visFSI->SetCameraMoveScale(0.1f);
     visFSI->EnableBoundaryMarkers(enableBoundaryMarkers);
     visFSI->EnableRigidBodyMarkers(enableRigidBodyMarkers);
