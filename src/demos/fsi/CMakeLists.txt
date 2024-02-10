@@ -10,6 +10,7 @@ set(DEMOS ${DEMOS}
    demo_FSI_BCE
    demo_FSI_CylinderDrop
    demo_FSI_Baffle_flow_GNS_test
+   demo_FSI_Baffle_flow_GNS_train
 )
 
 if(ENABLE_MODULE_PARDISO_MKL)

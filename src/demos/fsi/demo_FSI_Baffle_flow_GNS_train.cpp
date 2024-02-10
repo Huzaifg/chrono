@@ -30,9 +30,15 @@
 #endif
 
 #include "chrono_thirdparty/filesystem/path.h"
+#include "chrono_thirdparty/filesystem/resolver.h"
+
+#include "chrono_thirdparty/rapidjson/document.h"
+#include "chrono_thirdparty/rapidjson/filereadstream.h"
+#include <random>
 
 using namespace chrono;
 using namespace chrono::fsi;
+using namespace rapidjson;
 
 // -----------------------------------------------------------------
 
@@ -42,6 +48,7 @@ ChVisualSystem::Type vis_type = ChVisualSystem::Type::VSG;
 // Output directories and settings
 const std::string out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TRAIN/";
 
+// Variables that are not randomized
 // Output frequency
 bool output = true;
 double out_fps = 20;
@@ -56,32 +63,8 @@ double baffle_thickness = 0.1;  // Dimension in the x direction
 double baffle_height = 0.3;     // Dimension in the z direction
 double baffle_width = 0.1;      // Dimension in the y direction
 
-// Baffle position
-double baffle1_x = 0.775;
-double baffle1_y = 0.375;
-double baffle1_z = 0;  // Base is on the ground
-
-double baffle2_x = 0.775;
-double baffle2_y = 1.625;
-double baffle2_z = 0;  // Base is on the ground
-
-double baffle3_x = 1.275;
-double baffle3_y = 1.0;
-double baffle3_z = 0;  // Base is on the ground
-
-// SPH particles are initialized as a box of granular material with these dimensions
-double granular_thickness = 0.35;
-double granular_height = 0.25;
-double granular_width = 1.4;
-
-// SPH Particles box left bottom corner coordinates
-// The constant is just to ensure the SPH particles don't intersect with the baffle BCE markers
-double granular_x = baffle1_x - baffle_thickness / 2 - granular_thickness - 0.005;
-double granular_y = baffle1_y - baffle_width / 2;
-double granular_z = 0.0;
-
 // Final simulation time
-double t_end = 1.0;
+double t_end = 350 * 0.0025;
 
 // Enable/disable run-time visualization
 bool render = true;
@@ -91,11 +74,177 @@ float render_fps = 1000;
 bool enableBoundaryMarkers = false;
 bool enableRigidBodyMarkers = true;
 
+// ----------------------------------------------------------------------------
+// Struct for storing the ranges of random parameters obtained from a JSON file
+// ----------------------------------------------------------------------------
+
+struct RandomParams {
+    RandomParams() : sim_id(0) {}
+
+    int sim_id;  // Simulation ID
+
+    // Granular Material
+    int no_granular_piles[2];   // Range of number of granular piles to sample from
+    double pile_size_range[2];  // Range of dimensions along x,y and z of the granular pile
+    double granular_x[2];       // Range of starting x coordinate of the granular pile
+    double granular_y[2];       // Range of starting y coordinate of the granular pile
+    double granular_z[2];       // Range of starting z coordinate of the granular pile
+    double pile_velx_range[2];  // Range of x component of the velocity of the granular pile
+    double pile_vely_range[2];  // Range of y component of the velocity of the granular pile
+    double pile_velz_range[2];  // Range of z component of the velocity of the granular pile
+
+    // Baffles
+    double no_obstacles[2];  // Range of number of obstacles
+
+    double baffle_x[2];  // Range of x coordinate of the baffle
+    double baffle_y[2];  // Range of y coordinate of the baffle
+    double baffle_z[2];  // Range of z coordinate of the baffle
+
+    // Once the granualr particles are initialized, the following variables are set in order to ensure the baffles are
+    // randomly placed at a sufficient distance
+    std::vector<ChVector<double>> granular_pile_start;  // Vector of granular pile start coordinates
+    std::vector<ChVector<double>> granular_pile_size;   // Vector of granular pile dimensions
+    int sampled_granular_piles;                         // Number of granular piles sampled
+};
+
+// ----------------------------------------------------------------------------
+// Read range of randomized variables from JSON file
+// ----------------------------------------------------------------------------
+void readRandomRanges(RandomParams& ranges, const std::string& ranges_file) {
+    std::cout << "Reading parameters from: " << ranges_file << std::endl;
+
+    FILE* fp = fopen(ranges_file.c_str(), "r");
+    if (!fp) {
+        std::cerr << "Invalid JSON file!" << std::endl;
+        return;
+    }
+
+    char readBuffer[32768];
+    FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+    fclose(fp);
+
+    Document doc;
+
+    doc.ParseStream<ParseFlag::kParseCommentsFlag>(is);
+    if (!doc.IsObject()) {
+        std::cerr << "Invalid JSON file!!" << std::endl;
+        return;
+    }
+
+    if (doc.HasMember("sim_id")) {
+        ranges.sim_id = doc["sim_id"].GetInt();
+    }
+
+    if (doc.HasMember("no_granular_piles")) {
+        ranges.no_granular_piles[0] = doc["no_granular_piles"][0].GetInt();
+        ranges.no_granular_piles[1] = doc["no_granular_piles"][1].GetInt();
+    }
+
+    if (doc.HasMember("pile_size_range")) {
+        ranges.pile_size_range[0] = doc["pile_size_range"][0].GetDouble();
+        ranges.pile_size_range[1] = doc["pile_size_range"][1].GetDouble();
+    }
+
+    if (doc.HasMember("pile_start_range")) {
+        ranges.granular_x[0] = doc["pile_start_range"][0][0u].GetDouble();
+        ranges.granular_x[1] = doc["pile_start_range"][0][1u].GetDouble();
+
+        ranges.granular_y[0] = doc["pile_start_range"][1][0u].GetDouble();
+        ranges.granular_y[1] = doc["pile_start_range"][1][1u].GetDouble();
+
+        ranges.granular_z[0] = doc["pile_start_range"][2][0u].GetDouble();
+        ranges.granular_z[1] = doc["pile_start_range"][2][1u].GetDouble();
+    }
+
+    if (doc.HasMember("pile_vel_range")) {
+        ranges.pile_velx_range[0] = doc["pile_vel_range"][0][0u].GetDouble();
+        ranges.pile_velx_range[1] = doc["pile_vel_range"][0][1u].GetDouble();
+
+        ranges.pile_vely_range[0] = doc["pile_vel_range"][1][0u].GetDouble();
+        ranges.pile_vely_range[1] = doc["pile_vel_range"][1][1u].GetDouble();
+
+        ranges.pile_velz_range[0] = doc["pile_vel_range"][2][0u].GetDouble();
+        ranges.pile_velz_range[1] = doc["pile_vel_range"][2][1u].GetDouble();
+    }
+
+    if (doc.HasMember("no_obstacles")) {
+        ranges.no_obstacles[0] = doc["no_obstacles"][0].GetDouble();
+        ranges.no_obstacles[1] = doc["no_obstacles"][1].GetDouble();
+    }
+
+    if (doc.HasMember("obstacle_cg_range")) {
+        ranges.baffle_x[0] = doc["obstacle_cg_range"][0][0u].GetDouble();
+        ranges.baffle_x[1] = doc["obstacle_cg_range"][0][1u].GetDouble();
+
+        ranges.baffle_y[0] = doc["obstacle_cg_range"][1][0u].GetDouble();
+        ranges.baffle_y[1] = doc["obstacle_cg_range"][1][1u].GetDouble();
+
+        ranges.baffle_z[0] = doc["obstacle_cg_range"][2][0u].GetDouble();
+        ranges.baffle_z[1] = doc["obstacle_cg_range"][2][1u].GetDouble();
+    }
+}
+
+// ------------------------------------------
+// Some utility functions for random numbers
+// ------------------------------------------
+
+int random_int(int min, int max) {
+    std::random_device rd;                              // Seed for random number generator
+    std::uniform_int_distribution<int> dist(min, max);  // Distribution over the range
+    return dist(rd);
+}
+
+double random_double(double min, double max) {
+    std::random_device rd;   // Seed random number generator
+    std::mt19937 gen(rd());  // Use Mersenne Twister engine
+    std::uniform_real_distribution<> dist(min, max);
+
+    return dist(gen);
+}
+
+bool checkBafflePlacement(const double baffle_x,
+                          const double baffle_y,
+                          const double baffle_z,
+                          const RandomParams ranges) {
+    bool valid;
+    // Loop over all the granular piles
+    for (int i = 0; i < ranges.sampled_granular_piles; i++) {
+        // Calculate granular pile start and end coordinates
+        double gp_start_x = ranges.granular_pile_start[i].x();
+        double gp_start_y = ranges.granular_pile_start[i].y();
+        double gp_start_z = ranges.granular_pile_start[i].z();
+
+        double gp_end_x = gp_start_x + ranges.granular_pile_size[i].x();
+        double gp_end_y = gp_start_y + ranges.granular_pile_size[i].y();
+        double gp_end_z = gp_start_z + ranges.granular_pile_size[i].z();
+
+        // Calculate baffle extents (considering half the dimensions)
+        double baffle_x_start = baffle_x - baffle_thickness / 2;
+        double baffle_y_start = baffle_y - baffle_width / 2;
+        double baffle_z_start = baffle_z - baffle_height / 2;
+
+        double baffle_x_end = baffle_x + baffle_thickness / 2;
+        double baffle_y_end = baffle_y + baffle_width / 2;
+        double baffle_z_end = baffle_z + baffle_height / 2;
+
+        // Check for overlap (baffle inside pile) and store valid if !overlap
+        valid = !((gp_end_x < baffle_x_start) ||  // Granular pile completely left of baffle
+                  (gp_start_x > baffle_x_end) ||  // Granular pile completely right of baffle
+                  (gp_end_y < baffle_y_start) ||  // Granular pile completely below baffle
+                  (gp_start_y > baffle_y_end) ||  // Granular pile completely above baffle
+                  (gp_end_z < baffle_z_start) ||  // Granular pile completely in front of baffle
+                  (gp_start_z > baffle_z_end)     // Granular pile completely behind baffle
+        );
+    }
+
+    return valid;
+}
+
 //------------------------------------------------------------------
 // Create the objects of the MBD system. BCE markers added next to
 // the boundaries of the fluid domain.
 //------------------------------------------------------------------
-void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
+void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI, const RandomParams& ranges) {
     // Set gravity to the rigid body system in chrono
     sysMBS.Set_G_acc(sysFSI.Get_G_acc());
 
@@ -132,64 +281,48 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
                               ChVector<>(bxDim, byDim, bzDim),           //
                               ChVector<int>(2, 2, 2));
 
-    // Create the baffles as Boxes
-    // Baffle 1
-    auto baffle1 = chrono_types::make_shared<ChBody>();
-    baffle1->SetPos(ChVector<>(baffle1_x, baffle1_y, baffle1_z + 0.5 * baffle_height));
-    baffle1->SetRot(ChQuaternion<>(1, 0, 0, 0));
-    baffle1->SetIdentifier(-2);
-    baffle1->SetBodyFixed(true);
-    sysMBS.AddBody(baffle1);
+    // Sample the number of baffles from ranges
+    int numBaffles = random_int(ranges.no_obstacles[0], ranges.no_obstacles[1]);
+    std::vector<std::shared_ptr<ChBody>> baffles(numBaffles);
 
-    // Add collision geometry for the baffle
-    chrono::utils::AddBoxGeometry(baffle1.get(), cmaterial, ChVector<>(baffle_thickness, baffle_width, baffle_height),
-                                  ChVector<>(0., 0., 0.), QUNIT);
-    baffle1->SetCollide(true);
+    for (int i = 0; i < numBaffles; i++) {
+        bool valid = false;
+        double baffle_x, baffle_y, baffle_z;
 
-    // Add BCE particles attached on the baffle into FSI system
-    sysFSI.AddBoxBCE(baffle1,  //
-                     ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
-                     ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
-    // Add as FSI Body
-    sysFSI.AddFsiBody(baffle1);
+        while (!valid) {
+            // Sample the cg position of the baffle
+            baffle_x = random_double(ranges.baffle_x[0], ranges.baffle_x[1]);
+            baffle_y = random_double(ranges.baffle_y[0], ranges.baffle_y[1]);
+            baffle_z = random_double(ranges.baffle_z[0], ranges.baffle_z[1]);
 
-    // Baffle 2
-    auto baffle2 = chrono_types::make_shared<ChBody>();
-    baffle2->SetPos(ChVector<>(baffle2_x, baffle2_y, baffle2_z + 0.5 * baffle_height));
-    baffle2->SetRot(ChQuaternion<>(1, 0, 0, 0));
-    baffle2->SetIdentifier(-3);
-    baffle2->SetBodyFixed(true);
-    sysMBS.AddBody(baffle2);
+            // Check if the baffle is placed at a sufficient distance from the granular pile
+            valid = checkBafflePlacement(baffle_x, baffle_y, baffle_z, ranges);
+        }
+        // Setup the baffle
+        auto baffle = chrono_types::make_shared<ChBody>();
+        baffle->SetPos(ChVector<>(baffle_x, baffle_y, baffle_z));
+        baffle->SetRot(ChQuaternion<>(1, 0, 0, 0));
+        baffle->SetIdentifier(-2 - i);  // Assign a unique (negative) ID
+        baffle->SetBodyFixed(true);
 
-    // Add collision geometry for the baffle
-    chrono::utils::AddBoxGeometry(baffle2.get(), cmaterial, ChVector<>(baffle_thickness, baffle_width, baffle_height),
-                                  ChVector<>(0., 0., 0.), QUNIT);
-    baffle2->SetCollide(true);
+        // Add collision geometry for the baffle
+        chrono::utils::AddBoxGeometry(baffle.get(), cmaterial,
+                                      ChVector<>(baffle_thickness, baffle_width, baffle_height), ChVector<>(0., 0., 0.),
+                                      QUNIT);
+        baffle->SetCollide(true);
 
-    // Add BCE particles attached on the baffle into FSI system
-    sysFSI.AddBoxBCE(baffle2,  //
-                     ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
-                     ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
-    sysFSI.AddFsiBody(baffle2);
+        // Store the baffle in the vector
+        baffles[i] = baffle;
+    }
 
-    // Baffle 3
-    auto baffle3 = chrono_types::make_shared<ChBody>();
-    baffle3->SetPos(ChVector<>(baffle3_x, baffle3_y, baffle3_z + 0.5 * baffle_height));
-    baffle3->SetRot(ChQuaternion<>(1, 0, 0, 0));
-    baffle3->SetIdentifier(-4);
-    baffle3->SetBodyFixed(true);
-    sysMBS.AddBody(baffle3);
-
-    // Add collision geometry for the baffle
-    chrono::utils::AddBoxGeometry(baffle3.get(), cmaterial, ChVector<>(baffle_thickness, baffle_width, baffle_height),
-                                  ChVector<>(0., 0., 0.), QUNIT);
-    baffle3->SetCollide(true);
-
-    // Add BCE particles attached on the baffle into FSI system
-    sysFSI.AddBoxBCE(baffle3,  //
-                     ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
-                     ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
-    sysFSI.AddFsiBody(baffle3);
+    // Loop through the baffles and add to the systems with BCE markers
+    for (auto baffle : baffles) {
+        sysMBS.AddBody(baffle);
+        sysFSI.AddBoxBCE(baffle,  //
+                         ChFrame<>(ChVector<>(0., 0., 0.), QUNIT),
+                         ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
+        sysFSI.AddFsiBody(baffle);
+    }
 }
 
 // =============================================================================
@@ -218,7 +351,7 @@ int main(int argc, char* argv[]) {
 
     sysMBS.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
 
-    std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow.json");
+    std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train.json");
     if (argc == 1) {
         std::cout << "Use the default JSON file" << std::endl;
     } else if (argc == 2) {
@@ -232,6 +365,13 @@ int main(int argc, char* argv[]) {
     sysFSI.ReadParametersFromFile(inputJson);
     sysFSI.SetNumBoundaryLayers(3);
 
+    // Read the ranges of randomized parameters from the input JSON file
+    RandomParams ranges;
+    std::string ranges_file = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train_ranges.json");
+
+    // Read the random ranges
+    readRandomRanges(ranges, ranges_file);
+
     // Set the periodic boundary condition (if not, set relative larger values)
     auto initSpace0 = sysFSI.GetInitialSpacing();
     ChVector<> cMin(-10, -10, -10);
@@ -241,24 +381,54 @@ int main(int argc, char* argv[]) {
     // Create an initial box for the terrain patch
     chrono::utils::GridSampler<> sampler(initSpace0);
 
-    // Use a chrono sampler to create a bucket of granular material
-    ChVector<> boxCenter(granular_x + 0.5 * granular_thickness, granular_y + 0.5 * granular_width,
-                         granular_z + 0.5 * granular_height);
-    ChVector<> boxHalfDim(0.5 * granular_thickness, 0.5 * granular_width, 0.5 * granular_height);
-    std::vector<ChVector<>> points = sampler.SampleBox(boxCenter, boxHalfDim);
+    // Sample number of granular material piles
+    int numPiles = random_int(ranges.no_granular_piles[0], ranges.no_granular_piles[1]);
+    ranges.sampled_granular_piles = numPiles;
 
-    // Add SPH particles from the sampler points to the FSI system
-    // TODO : Check if the number of particles is the same as that in the paper
-    size_t numPart = (int)points.size();
-    double gz = std::abs(sysFSI.Get_G_acc().z());
-    for (int i = 0; i < numPart; i++) {
-        double pre_ini = sysFSI.GetDensity() * gz * (-points[i].z() + bzDim);
-        double rho_ini = sysFSI.GetDensity() + pre_ini / (sysFSI.GetSoundSpeed() * sysFSI.GetSoundSpeed());
-        sysFSI.AddSPHParticle(points[i], rho_ini, pre_ini, sysFSI.GetViscosity(), ChVector<>(2, 0, 0));
+    // Generate the granular piles and add them to the FSI system
+    for (int i = 0; i < numPiles; i++) {
+        // Sample x,y and z starting positions of granular pile
+        double granular_x = random_double(ranges.granular_x[0], ranges.granular_x[1]);
+        double granular_y = random_double(ranges.granular_y[0], ranges.granular_y[1]);
+        double granular_z = random_double(ranges.granular_z[0], ranges.granular_z[1]);
+
+        // Store start position in ranges
+        ranges.granular_pile_start.push_back(ChVector<double>(granular_x, granular_y, granular_z));
+
+        // Sample the dimensions of the granular pile
+        double granular_thickness = random_double(ranges.pile_size_range[0], ranges.pile_size_range[1]);
+        // Cube shaped granular pile
+        double granular_height = granular_thickness;
+        double granular_width = granular_thickness;
+
+        // Store granular pile size in ranges
+        ranges.granular_pile_size.push_back(ChVector<double>(granular_thickness, granular_width, granular_height));
+
+        // Use a chrono sampler to create a bucket of granular material
+        ChVector<> boxCenter(granular_x + 0.5 * granular_thickness, granular_y + 0.5 * granular_width,
+                             granular_z + 0.5 * granular_height);
+        ChVector<> boxHalfDim(0.5 * granular_thickness, 0.5 * granular_width, 0.5 * granular_height);
+        std::vector<ChVector<>> points = sampler.SampleBox(boxCenter, boxHalfDim);
+
+        // Add SPH particles from the sampler points to the FSI system
+        size_t numPart = (int)points.size();
+        double gz = std::abs(sysFSI.Get_G_acc().z());
+        for (int i = 0; i < numPart; i++) {
+            double pre_ini = sysFSI.GetDensity() * gz * (-points[i].z() + bzDim);
+            double rho_ini = sysFSI.GetDensity() + pre_ini / (sysFSI.GetSoundSpeed() * sysFSI.GetSoundSpeed());
+
+            // Sample the velocity of the granular pile
+            double pile_velx = random_double(ranges.pile_velx_range[0], ranges.pile_velx_range[1]);
+            double pile_vely = random_double(ranges.pile_vely_range[0], ranges.pile_vely_range[1]);
+            double pile_velz = random_double(ranges.pile_velz_range[0], ranges.pile_velz_range[1]);
+
+            sysFSI.AddSPHParticle(points[i], rho_ini, pre_ini, sysFSI.GetViscosity(),
+                                  ChVector<>(pile_velx, pile_vely, pile_velz));
+        }
     }
 
     // Create MBD and BCE particles for the solid domain
-    CreateSolidPhase(sysMBS, sysFSI);
+    CreateSolidPhase(sysMBS, sysFSI, ranges);
 
     // Complete construction of the FSI system
     sysFSI.Initialize();
@@ -276,7 +446,7 @@ int main(int argc, char* argv[]) {
     auto origin = sysMBS.Get_bodylist()[0]->GetPos();
     visFSI->SetTitle("Chrono::FSI Baffle Flow");
     visFSI->SetSize(1280, 720);
-    visFSI->AddCamera(ChVector<>(bxDim + 0.75, 0, bzDim + 0.5), ChVector<>(2 * granular_x, 3 * granular_y, granular_z));
+    visFSI->AddCamera(ChVector<>(bxDim + 0.75, 0, bzDim + 0.5), ChVector<>(0.4, 0.4, 0.4));
     visFSI->SetCameraMoveScale(0.1f);
     visFSI->EnableBoundaryMarkers(enableBoundaryMarkers);
     visFSI->EnableRigidBodyMarkers(enableRigidBodyMarkers);
