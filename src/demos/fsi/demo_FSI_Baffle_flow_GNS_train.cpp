@@ -187,7 +187,6 @@ void readRandomRanges(RandomParams& ranges, const std::string& ranges_file) {
 // ------------------------------------------
 // Some utility functions for random numbers
 // ------------------------------------------
-
 int random_int(int min, int max) {
     std::random_device rd;                              // Seed for random number generator
     std::uniform_int_distribution<int> dist(min, max);  // Distribution over the range
@@ -202,11 +201,49 @@ double random_double(double min, double max) {
     return dist(gen);
 }
 
+// ----------------------------------------------
+// Check if the granular pile is within the box
+// ----------------------------------------------
+bool checkGranularPlacement(const double granular_start_x,
+                            const double granular_start_y,
+                            const double granular_start_z,
+                            const double granular_thickness,
+                            const double granular_width,
+                            const double granular_height) {
+    // Calculate end positions of granular pile
+    double granular_end_x = granular_start_x + granular_thickness;
+    double granular_end_y = granular_start_y + granular_width;
+    double granular_end_z = granular_start_z + granular_height;
+
+    // Calculate end positions of box
+    double box_end_x = bxDim;
+    double box_end_y = byDim;
+    double box_end_z = bzDim;
+
+    // Check if granular pile is completely within the box in all dimensions
+    return (0. < granular_start_x && granular_end_x < box_end_x) &&
+           (0. < granular_start_y && granular_end_y < box_end_y) &&
+           (0. < granular_start_z && granular_end_z < box_end_z);
+}
+// -----------------------------------------------------------
+// Check if the baffle is placed away from the granular piles
+// Also checks if the baffles are placed away from each other
+// -----------------------------------------------------------
 bool checkBafflePlacement(const double baffle_x,
                           const double baffle_y,
                           const double baffle_z,
-                          const RandomParams ranges) {
-    bool valid;
+                          const RandomParams ranges,
+                          const std::vector<std::shared_ptr<ChBody>>& baffles,
+                          const int baffle_index) {
+    // Calculate baffle extents (considering half the dimensions)
+    double baffle_x_start = baffle_x - baffle_thickness / 2;
+    double baffle_y_start = baffle_y - baffle_width / 2;
+    double baffle_z_start = baffle_z - baffle_height / 2;
+
+    double baffle_x_end = baffle_x + baffle_thickness / 2;
+    double baffle_y_end = baffle_y + baffle_width / 2;
+    double baffle_z_end = baffle_z + baffle_height / 2;
+
     // Loop over all the granular piles
     for (int i = 0; i < ranges.sampled_granular_piles; i++) {
         // Calculate granular pile start and end coordinates
@@ -218,26 +255,45 @@ bool checkBafflePlacement(const double baffle_x,
         double gp_end_y = gp_start_y + ranges.granular_pile_size[i].y();
         double gp_end_z = gp_start_z + ranges.granular_pile_size[i].z();
 
-        // Calculate baffle extents (considering half the dimensions)
-        double baffle_x_start = baffle_x - baffle_thickness / 2;
-        double baffle_y_start = baffle_y - baffle_width / 2;
-        double baffle_z_start = baffle_z - baffle_height / 2;
-
-        double baffle_x_end = baffle_x + baffle_thickness / 2;
-        double baffle_y_end = baffle_y + baffle_width / 2;
-        double baffle_z_end = baffle_z + baffle_height / 2;
-
-        // Check for overlap (baffle inside pile) and store valid if !overlap
-        valid = !((gp_end_x < baffle_x_start) ||  // Granular pile completely left of baffle
-                  (gp_start_x > baffle_x_end) ||  // Granular pile completely right of baffle
-                  (gp_end_y < baffle_y_start) ||  // Granular pile completely below baffle
-                  (gp_start_y > baffle_y_end) ||  // Granular pile completely above baffle
-                  (gp_end_z < baffle_z_start) ||  // Granular pile completely in front of baffle
-                  (gp_start_z > baffle_z_end)     // Granular pile completely behind baffle
-        );
+        // Check for overlap -> If there is any overlap, return false
+        if (!((gp_end_x < baffle_x_start) ||  // Granular pile completely left of baffle
+              (gp_start_x > baffle_x_end) ||  // Granular pile completely right of baffle
+              (gp_end_y < baffle_y_start) ||  // Granular pile completely below baffle
+              (gp_start_y > baffle_y_end) ||  // Granular pile completely above baffle
+              (gp_end_z < baffle_z_start) ||  // Granular pile completely in front of baffle
+              (gp_start_z > baffle_z_end))    // Granular pile completely behind baffle
+        ) {
+            return false;
+        }
     }
 
-    return valid;
+    if (baffle_index == 0)
+        return true;  // No baffles to check against (first baffle is always valid
+
+    // Loop over all the other baffles to ensure they are placed away from each other
+    for (int i = 0; i < baffle_index; i++) {
+        // Calculate baffle extents (considering half the dimensions)
+        double other_baffle_x_start = baffles[i]->GetPos().x() - baffle_thickness / 2;
+        double other_baffle_y_start = baffles[i]->GetPos().y() - baffle_width / 2;
+        double other_baffle_z_start = baffles[i]->GetPos().z() - baffle_height / 2;
+
+        double other_baffle_x_end = baffles[i]->GetPos().x() + baffle_thickness / 2;
+        double other_baffle_y_end = baffles[i]->GetPos().y() + baffle_width / 2;
+        double other_baffle_z_end = baffles[i]->GetPos().z() + baffle_height / 2;
+
+        // Check for overlap -> If there is any overlap, return false
+        if (!((other_baffle_x_end < baffle_x_start) ||  // Other baffle completely left of baffle
+              (other_baffle_x_start > baffle_x_end) ||  // Other baffle completely right of baffle
+              (other_baffle_y_end < baffle_y_start) ||  // Other baffle completely below baffle
+              (other_baffle_y_start > baffle_y_end) ||  // Other baffle completely above baffle
+              (other_baffle_z_end < baffle_z_start) ||  // Other baffle completely in front of baffle
+              (other_baffle_z_start > baffle_z_end))    // Other baffle completely behind baffle
+        ) {
+            return false;
+        }
+    }
+    // If we reach here, the baffle doesn't overlap any piles
+    return true;
 }
 
 //------------------------------------------------------------------
@@ -289,14 +345,20 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI, const RandomPara
         bool valid = false;
         double baffle_x, baffle_y, baffle_z;
 
-        while (!valid) {
+        int attempt = 0;
+        int max_attempts = 10000;
+        while (!valid && attempt < max_attempts) {
             // Sample the cg position of the baffle
             baffle_x = random_double(ranges.baffle_x[0], ranges.baffle_x[1]);
             baffle_y = random_double(ranges.baffle_y[0], ranges.baffle_y[1]);
             baffle_z = random_double(ranges.baffle_z[0], ranges.baffle_z[1]);
 
-            // Check if the baffle is placed at a sufficient distance from the granular pile
-            valid = checkBafflePlacement(baffle_x, baffle_y, baffle_z, ranges);
+            // Check if baffle placed away from granular material and each other
+            valid = checkBafflePlacement(baffle_x, baffle_y, baffle_z, ranges, baffles, i);
+            attempt++;
+        }
+        if (attempt == max_attempts) {
+            std::cerr << "Max attempts reached for placing baffle " << i << std::endl;
         }
         // Setup the baffle
         auto baffle = chrono_types::make_shared<ChBody>();
@@ -387,19 +449,35 @@ int main(int argc, char* argv[]) {
 
     // Generate the granular piles and add them to the FSI system
     for (int i = 0; i < numPiles; i++) {
-        // Sample x,y and z starting positions of granular pile
-        double granular_x = random_double(ranges.granular_x[0], ranges.granular_x[1]);
-        double granular_y = random_double(ranges.granular_y[0], ranges.granular_y[1]);
-        double granular_z = random_double(ranges.granular_z[0], ranges.granular_z[1]);
+        bool valid = false;
+
+        double granular_x, granular_y, granular_z;
+        double granular_thickness, granular_width, granular_height;
+
+        int attempt = 0;
+        int max_attempts = 10000;  // Set a maximum number of attempts to avoid infinite loop
+        while (!valid && attempt < max_attempts) {
+            // Sample x,y and z starting positions of granular pile
+            granular_x = random_double(ranges.granular_x[0], ranges.granular_x[1]);
+            granular_y = random_double(ranges.granular_y[0], ranges.granular_y[1]);
+            granular_z = random_double(ranges.granular_z[0], ranges.granular_z[1]);
+
+            // Sample the dimensions of the granular pile
+            granular_thickness = random_double(ranges.pile_size_range[0], ranges.pile_size_range[1]);
+            // Cube shaped granular pile
+            granular_height = granular_thickness;
+            granular_width = granular_thickness;
+
+            valid = checkGranularPlacement(granular_x, granular_y, granular_z, granular_thickness, granular_width,
+                                           granular_height);
+            attempt++;  // Increment attempt counter
+        }
+        if (attempt == max_attempts) {
+            std::cerr << "Max attempts reached for placing granular pile" << std::endl;
+        }
 
         // Store start position in ranges
         ranges.granular_pile_start.push_back(ChVector<double>(granular_x, granular_y, granular_z));
-
-        // Sample the dimensions of the granular pile
-        double granular_thickness = random_double(ranges.pile_size_range[0], ranges.pile_size_range[1]);
-        // Cube shaped granular pile
-        double granular_height = granular_thickness;
-        double granular_width = granular_thickness;
 
         // Store granular pile size in ranges
         ranges.granular_pile_size.push_back(ChVector<double>(granular_thickness, granular_width, granular_height));
@@ -427,6 +505,8 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // NOTE: CreateSolidPhase() must be called after the granular piles are initialized -> This is because the baffle
+    // positioning is dependent on the granular piles
     // Create MBD and BCE particles for the solid domain
     CreateSolidPhase(sysMBS, sysFSI, ranges);
 
