@@ -75,6 +75,36 @@ bool enableBoundaryMarkers = false;
 bool enableRigidBodyMarkers = true;
 
 // ----------------------------------------------------------------------------
+// Callback class for particle color based on x-displacement
+// ----------------------------------------------------------------------------
+class ChApi DisplacementColorCallback : public ChParticleCloud::ColorCallback {
+  public:
+    DisplacementColorCallback(double xmin, double xmax, const ChVector<>& up = ChVector<>(1, 0, 0))
+        : m_monochrome(false), m_xmin(xmin), m_xmax(xmax), m_up(up) {}
+    DisplacementColorCallback(const ChColor& base_color,
+                              double xmin,
+                              double xmax,
+                              const ChVector<>& up = ChVector<>(1, 0, 0))
+        : m_monochrome(true), m_base_color(base_color), m_xmin(xmin), m_xmax(xmax), m_up(up) {}
+
+    virtual ChColor get(unsigned int n, const ChParticleCloud& cloud) const override {
+        double displacement = Vdot(cloud.GetParticlePos(n), m_up);  // particle height
+        if (m_monochrome) {
+            float factor = (float)((displacement - m_xmin) / (m_xmax - m_xmin));  // color scaling factor (0,1)
+            return ChColor(factor * m_base_color.R, factor * m_base_color.G, factor * m_base_color.B);
+        } else
+            return ChColor::ComputeFalseColor(displacement, m_xmin, m_xmax);
+    }
+
+  private:
+    bool m_monochrome;
+    ChColor m_base_color;
+    double m_xmin;
+    double m_xmax;
+    ChVector<> m_up;
+};
+
+// ----------------------------------------------------------------------------
 // Struct for storing the ranges of random parameters obtained from a JSON file
 // ----------------------------------------------------------------------------
 
@@ -525,14 +555,14 @@ int main(int argc, char* argv[]) {
     std::shared_ptr<ChFsiVisualization> visFSI = chrono_types::make_shared<ChFsiVisualizationVSG>(&sysFSI);
     auto origin = sysMBS.Get_bodylist()[0]->GetPos();
     visFSI->SetTitle("Chrono::FSI Baffle Flow");
-    visFSI->SetSize(1280, 720);
+    visFSI->SetSize(2560, 1440);
     visFSI->AddCamera(ChVector<>(bxDim + 0.75, 0, bzDim + 0.5), ChVector<>(0.4, 0.4, 0.4));
     visFSI->SetCameraMoveScale(0.1f);
     visFSI->EnableBoundaryMarkers(enableBoundaryMarkers);
     visFSI->EnableRigidBodyMarkers(enableRigidBodyMarkers);
     visFSI->SetRenderMode(ChFsiVisualization::RenderMode::SOLID);
     visFSI->SetParticleRenderMode(ChFsiVisualization::RenderMode::SOLID);
-    visFSI->SetSPHColorCallback(chrono_types::make_shared<HeightColorCallback>(0, 1.2));
+    visFSI->SetSPHColorCallback(chrono_types::make_shared<DisplacementColorCallback>(0, 0.8));
     visFSI->AttachSystem(&sysMBS);
     visFSI->Initialize();
 

@@ -34,6 +34,36 @@
 using namespace chrono;
 using namespace chrono::fsi;
 
+// ----------------------------------------------------------------------------
+// Callback class for particle color based on x-displacement
+// ----------------------------------------------------------------------------
+class ChApi DisplacementColorCallback : public ChParticleCloud::ColorCallback {
+  public:
+    DisplacementColorCallback(double xmin, double xmax, const ChVector<>& up = ChVector<>(1, 0, 0))
+        : m_monochrome(false), m_xmin(xmin), m_xmax(xmax), m_up(up) {}
+    DisplacementColorCallback(const ChColor& base_color,
+                              double xmin,
+                              double xmax,
+                              const ChVector<>& up = ChVector<>(1, 0, 0))
+        : m_monochrome(true), m_base_color(base_color), m_xmin(xmin), m_xmax(xmax), m_up(up) {}
+
+    virtual ChColor get(unsigned int n, const ChParticleCloud& cloud) const override {
+        double displacement = Vdot(cloud.GetParticlePos(n), m_up);  // particle height
+        if (m_monochrome) {
+            float factor = (float)((displacement - m_xmin) / (m_xmax - m_xmin));  // color scaling factor (0,1)
+            return ChColor(factor * m_base_color.R, factor * m_base_color.G, factor * m_base_color.B);
+        } else
+            return ChColor::ComputeFalseColor(displacement, m_xmin, m_xmax);
+    }
+
+  private:
+    bool m_monochrome;
+    ChColor m_base_color;
+    double m_xmin;
+    double m_xmax;
+    ChVector<> m_up;
+};
+
 // -----------------------------------------------------------------
 
 // Run-time visualization system (OpenGL or VSG)
@@ -81,11 +111,11 @@ double granular_y = baffle1_y - baffle_width / 2;
 double granular_z = 0.0;
 
 // Final simulation time
-double t_end = 1.0;
+double t_end = 0.7;
 
 // Enable/disable run-time visualization
 bool render = true;
-float render_fps = 1000;
+float render_fps = 100;
 
 // Marker viz
 bool enableBoundaryMarkers = false;
@@ -282,7 +312,9 @@ int main(int argc, char* argv[]) {
     visFSI->EnableRigidBodyMarkers(enableRigidBodyMarkers);
     visFSI->SetRenderMode(ChFsiVisualization::RenderMode::SOLID);
     visFSI->SetParticleRenderMode(ChFsiVisualization::RenderMode::SOLID);
-    visFSI->SetSPHColorCallback(chrono_types::make_shared<HeightColorCallback>(0, 1.2));
+    visFSI->SetSPHColorCallback(chrono_types::make_shared<DisplacementColorCallback>(granular_x, 1.8));
+    visFSI->SetImageOutputDirectory(out_dir + "images");
+    visFSI->SetImageOutput(1);
     visFSI->AttachSystem(&sysMBS);
     visFSI->Initialize();
 

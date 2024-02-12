@@ -32,7 +32,7 @@ using namespace std;
 // -----------------------------------------------------------------------------
 
 class GuiComponentWrapper {
-   public:
+  public:
     GuiComponentWrapper(std::shared_ptr<ChGuiComponentVSG> component, ChVisualSystemVSG* app)
         : m_component(component), m_app(app) {}
 
@@ -44,13 +44,13 @@ class GuiComponentWrapper {
         return false;
     }
 
-   private:
+  private:
     std::shared_ptr<ChGuiComponentVSG> m_component;
     ChVisualSystemVSG* m_app;
 };
 
 class ChBaseGuiComponentVSG : public ChGuiComponentVSG {
-   public:
+  public:
     ChBaseGuiComponentVSG(ChVisualSystemVSG* app) : m_app(app) {}
 
     // Example here taken from the Dear imgui comments (mostly)
@@ -138,7 +138,7 @@ class ChBaseGuiComponentVSG : public ChGuiComponentVSG {
 };
 
 class ChCameraGuiComponentVSG : public ChGuiComponentVSG {
-   public:
+  public:
     ChCameraGuiComponentVSG(ChVisualSystemVSG* app) : m_app(app) { m_visible = false; }
 
     virtual void render() override {
@@ -184,7 +184,7 @@ class ChCameraGuiComponentVSG : public ChGuiComponentVSG {
 };
 
 class ChColorbarGuiComponentVSG : public ChGuiComponentVSG {
-   public:
+  public:
     ChColorbarGuiComponentVSG(const std::string& title, double min_val, double max_val)
         : m_title(title), m_min_val(min_val), m_max_val(max_val) {}
 
@@ -247,7 +247,7 @@ class ChColorbarGuiComponentVSG : public ChGuiComponentVSG {
         ImGui::End();
     }
 
-   private:
+  private:
     std::string m_title;
     double m_min_val;
     double m_max_val;
@@ -256,19 +256,19 @@ class ChColorbarGuiComponentVSG : public ChGuiComponentVSG {
 // -----------------------------------------------------------------------------
 
 class EventHandlerWrapper : public vsg::Inherit<vsg::Visitor, EventHandlerWrapper> {
-   public:
+  public:
     EventHandlerWrapper(std::shared_ptr<ChEventHandlerVSG> component, ChVisualSystemVSG* app)
         : m_component(component), m_app(app) {}
 
     void apply(vsg::KeyPressEvent& keyPress) override { m_component->process(keyPress); }
 
-   private:
+  private:
     std::shared_ptr<ChEventHandlerVSG> m_component;
     ChVisualSystemVSG* m_app;
 };
 
 class ChBaseEventHandlerVSG : public ChEventHandlerVSG {
-   public:
+  public:
     ChBaseEventHandlerVSG(ChVisualSystemVSG* app) : m_app(app) {}
 
     virtual void process(vsg::KeyPressEvent& keyPress) override {
@@ -292,7 +292,7 @@ class ChBaseEventHandlerVSG : public ChEventHandlerVSG {
 // Note: since VSG v.1.0.8 VertexIndexDraw is used instead of BindVertexBuffers!
 template <int N>
 class FindVec3BufferData : public vsg::Visitor {
-   public:
+  public:
     FindVec3BufferData() : m_buffer(nullptr) {}
     void apply(vsg::Object& object) override { object.traverse(*this); }
     void apply(vsg::BindVertexBuffers& bvd) override {
@@ -321,7 +321,7 @@ class FindVec3BufferData : public vsg::Visitor {
 // Note: since VSG v.1.0.8 VertexIndexDraw is used instead of BindVertexBuffers!
 template <int N>
 class FindVec4BufferData : public vsg::Visitor {
-   public:
+  public:
     FindVec4BufferData() : m_buffer(nullptr) {}
     void apply(vsg::Object& object) override { object.traverse(*this); }
     void apply(vsg::BindVertexBuffers& bvd) override {
@@ -1765,11 +1765,8 @@ void ChVisualSystemVSG::AddGrid(double x_step, double y_step, int nx, int ny, Ch
 }
 
 void ChVisualSystemVSG::exportScreenImage() {
-    m_write_images = false;
-
     auto width = m_window->extent2D().width;
     auto height = m_window->extent2D().height;
-
     auto device = m_window->getDevice();
     auto physicalDevice = m_window->getPhysicalDevice();
     auto swapchain = m_window->getSwapchain();
