@@ -66,11 +66,8 @@ class ChApi DisplacementColorCallback : public ChParticleCloud::ColorCallback {
 
 // -----------------------------------------------------------------
 
-// Run-time visualization system (OpenGL or VSG)
+// Run-time visualization system (IRRLICHT or VSG)
 ChVisualSystem::Type vis_type = ChVisualSystem::Type::VSG;
-
-// Output directories and settings
-const std::string out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TEST/";
 
 // Output frequency
 bool output = true;
@@ -224,7 +221,16 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
 
 // =============================================================================
 int main(int argc, char* argv[]) {
-    // Create oputput directories
+    // Output directories and settings
+    std::string out_dir;
+    if (argc < 2) {
+        out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TEST/";
+    } else {
+        out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TEST_" + argv[1] + "/";
+    }
+
+
+    // Create output directories
     if (!filesystem::create_directory(filesystem::path(out_dir))) {
         std::cerr << "Error creating directory " << out_dir << std::endl;
         return 1;
@@ -249,16 +255,8 @@ int main(int argc, char* argv[]) {
     sysMBS.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
 
     std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_test.json");
-    if (argc == 1) {
-        std::cout << "Use the default JSON file" << std::endl;
-    } else if (argc == 2) {
-        std::cout << "Use the specified JSON file" << std::endl;
-        std::string my_inputJson = std::string(argv[1]);
-        inputJson = my_inputJson;
-    } else {
-        std::cout << "usage: ./demo_FSI_CylinderDrop <json_file>" << std::endl;
-        return 1;
-    }
+    std::cout << "Use the default JSON file" << std::endl;
+
     sysFSI.ReadParametersFromFile(inputJson);
     sysFSI.SetNumBoundaryLayers(3);
 
@@ -300,6 +298,7 @@ int main(int argc, char* argv[]) {
     mystepper->SetMaxiters(1000);
     mystepper->SetAbsTolerances(1e-6);
 
+    #ifdef CHRONO_VSG
     // Set up real-time visualization of the FSI system
     vis_type = ChVisualSystem::Type::VSG;
     std::shared_ptr<ChFsiVisualization> visFSI = chrono_types::make_shared<ChFsiVisualizationVSG>(&sysFSI);
@@ -317,10 +316,11 @@ int main(int argc, char* argv[]) {
     visFSI->SetImageOutput(1);
     visFSI->AttachSystem(&sysMBS);
     visFSI->Initialize();
+    #endif
 
     // Start the simulation
     double dT = sysFSI.GetStepSize();
-    unsigned int output_steps = (unsigned int)round(1 / (out_fps * dT));
+    unsigned int output_steps = 25;
     unsigned int render_steps = (unsigned int)round(1 / (render_fps * dT));
     double time = 0.0;
     int current_step = 0;
@@ -328,18 +328,21 @@ int main(int argc, char* argv[]) {
     timer.start();
     while (time < t_end) {
         if (output && current_step % output_steps == 0) {
-            std::cout << "-------- Output" << std::endl;
             sysFSI.PrintParticleToFile(out_dir + "/particles");
             sysFSI.PrintFsiInfoToFile(out_dir + "/fsi", time);
         }
 
+        #ifdef CHRONO_VSG
         // Render SPH particles
         if (render && current_step % render_steps == 0) {
             if (!visFSI->Render())
                 break;
         }
+        #endif
 
-        std::cout << "step: " << current_step << "\ttime: " << time << "\tRTF: " << sysFSI.GetRTF() << std::endl;
+        if (current_step % 1000 == 0) {
+            std::cout << "step: " << current_step << "\ttime: " << time << "\tRTF: " << sysFSI.GetRTF() << std::endl;
+        }
 
         // Call the FSI solver
         sysFSI.DoStepDynamics_FSI();
