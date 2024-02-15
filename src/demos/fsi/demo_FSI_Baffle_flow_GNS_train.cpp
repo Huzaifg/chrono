@@ -418,12 +418,19 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI, const RandomPara
 
 // =============================================================================
 int main(int argc, char* argv[]) {
-    // Output directories and settings
+    // Output directory
     std::string out_dir;
-    if (argc < 2) {
+    // Read the ranges of randomized parameters and json file
+    RandomParams ranges;
+    std::string ranges_file;
+    
+    if (argc < 3) {
         out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TRAIN/";
+        ranges_file = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train_ranges.json");
     } else {
-        out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TRAIN_" + argv[1] + "/";
+        // Weird name because we already have output
+        out_dir = GetChronoOutputPath() + argv[3] + "_BAFFLE_FLOW_TRAIN_" + argv[1] + "/";
+        ranges_file = argv[2];
     }
 
     // Create output directories
@@ -455,10 +462,6 @@ int main(int argc, char* argv[]) {
     
     sysFSI.ReadParametersFromFile(inputJson);
     sysFSI.SetNumBoundaryLayers(3);
-
-    // Read the ranges of randomized parameters from the input JSON file
-    RandomParams ranges;
-    std::string ranges_file = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train_ranges.json");
 
     // Read the random ranges
     readRandomRanges(ranges, ranges_file);
