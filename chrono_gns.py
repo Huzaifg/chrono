@@ -3,8 +3,9 @@ from os import listdir
 
 positions = []
 particle_num = []
+output = {}
 
-def convert(directory: str, folder_input: str, npz_output: str) -> None:
+def convert(i: int, folder_input: str) -> None:
     bce = []
     if (folder_input[len(folder_input) - 1] != '/'):
         folder_input += '/'
@@ -41,20 +42,18 @@ def convert(directory: str, folder_input: str, npz_output: str) -> None:
                 particle_num.append(6)
         comb = bce + temp
         positions.append(comb)
-    output = {}
-    output[directory] = (positions, particle_num)
+    
+    output["simulation_trajectory_" + str(i)] = (positions, particle_num)
     # np.savez_compressed(npz_output, **output)
-    np.savez_compressed(npz_output, positions, particle_num)
 
 def test(npz_input: str) -> None:
     data_in = np.load(npz_input, allow_pickle=True)
     data = [[item for _, item in data_in.items()]]
     print(data[0][0].shape)
-    # print(data_in["gns_data"])
 
 if __name__ == "__main__":
-    for train_it in range(1, 5 + 1):
-        for i in range(1, 200 + 1):
-            convert("", "")
-    convert("", "/home/thomasl/terrainmodel/chrono/build/DEMO_OUTPUT/BAFFLE_FLOW_TRAIN/particles", "/home/thomasl/terrainmodel/chrono_gns_output/test.npz")
-    # test("/home/thomasl/terrainmodel/chrono_gns_output/test.npz")
+    # for train_it in range(1, 5 + 1):
+    for i in range(1, 200 + 1):
+        convert(i, "/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_" + str(i))
+    npz_output = "/srv/home/sliang87/terrainmodel/train1.npz"
+    np.savez_compressed(npz_output, **output)
