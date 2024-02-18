@@ -1,21 +1,11 @@
 import numpy as np
-from os import listdir
 
 output = {}
 
 def convert(i: int, folder_input: str) -> None:
-    if (folder_input[len(folder_input) - 1] != '/'):
-        folder_input += '/'
-    folder = listdir(folder_input)
-    nmax = float("-inf")
-    for file in folder:
-        prefix = file[:3]
-        if (file == "boundary0.csv"):
-            continue
-        elif (prefix == "BCE"):
-            num = int(file[9:file.find('.')])
-            nmax = max(nmax, num)
-
+    # if (folder_input[len(folder_input) - 1] != '/'):
+    #     folder_input += '/'
+    nmax = 350
     bce_file = open(f"{folder_input}BCE_Rigid0.csv", "r")
     next(bce_file)
     bce_lines = len(bce_file.readlines())
