@@ -57,22 +57,38 @@ def test(npz_input: str) -> None:
     # print(data[0].shape)
 
 if __name__ == "__main__":
-    for i in range(1, 180 + 1):
-        convert(1, i, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
-        print(f"1 {i}")
-    for i in range(181, 200 + 1):
-        convert(1, i, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
-        print(f"1 {i}")
+    # for i in range(1, 180 + 1):
+    #     convert(1, i, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
+    #     print(f"1 {i}")
+    # for i in range(181, 200 + 1):
+    #     convert(1, i, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
+    #     print(f"1 {i}")
 
-    for train_it in range(2, 5 + 1):
-        for i in range(1, 180 + 1):
-            convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
-            print(f"{train_it} {i}")
-        for i in range(181, 200 + 1):
-            convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
-            print(f"{train_it} {i}")
+    # for train_it in range(2, 5 + 1):
+    #     for i in range(1, 180 + 1):
+    #         convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
+    #         print(f"{train_it} {i}")
+    #     for i in range(181, 200 + 1):
+    #         convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
+    #         print(f"{train_it} {i}")
 
-    train_npz_output = f"/srv/home/sliang87/terrainmodel/train.npz"
+    # train_npz_output = f"/srv/home/sliang87/terrainmodel/train.npz"
+    # np.savez_compressed(train_npz_output, **train_output)
+    # test_npz_output = f"/srv/home/sliang87/terrainmodel/test.npz"
+    # np.savez_compressed(test_npz_output, **test_output)
+
+    batch_size = 40
+    train_split = batch_size * 0.9
+    for bs in range(1, train_split + 1):
+        convert(1, bs, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
+        for train_it in range(2, 5 + 1):
+            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
+    for bs in range(train_split + 1, batch_size + 1):
+        convert(1, bs, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
+        for train_it in range(2, 5 + 1):
+            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
+
+    train_npz_output = f"/srv/home/sliang87/terrainmodel/train_1.npz"
     np.savez_compressed(train_npz_output, **train_output)
-    test_npz_output = f"/srv/home/sliang87/terrainmodel/test.npz"
+    test_npz_output = f"/srv/home/sliang87/terrainmodel/test_1.npz"
     np.savez_compressed(test_npz_output, **test_output)
