@@ -66,10 +66,10 @@ if __name__ == "__main__":
 
     for train_it in range(2, 5 + 1):
         for i in range(1, 180 + 1):
-            convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/")
+            convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
             print(f"{train_it} {i}")
         for i in range(181, 200 + 1):
-            convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/")
+            convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
             print(f"{train_it} {i}")
 
     train_npz_output = f"/srv/home/sliang87/terrainmodel/train.npz"
