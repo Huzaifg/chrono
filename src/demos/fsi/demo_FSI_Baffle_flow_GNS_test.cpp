@@ -70,8 +70,8 @@ class ChApi DisplacementColorCallback : public ChParticleCloud::ColorCallback {
 ChVisualSystem::Type vis_type = ChVisualSystem::Type::VSG;
 
 // Output frequency
-bool output = true;
-double out_fps = 20;
+bool output = false;
+unsigned int out_fps = 25;
 
 // Dimension of the space domain
 double bxDim = 1.8;
@@ -111,7 +111,7 @@ double granular_z = 0.0;
 double t_end = 0.7;
 
 // Enable/disable run-time visualization
-bool render = true;
+bool render = false;
 float render_fps = 100;
 
 // Marker viz
@@ -229,7 +229,6 @@ int main(int argc, char* argv[]) {
         out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TEST_" + argv[1] + "/";
     }
 
-
     // Create output directories
     if (!filesystem::create_directory(filesystem::path(out_dir))) {
         std::cerr << "Error creating directory " << out_dir << std::endl;
@@ -298,7 +297,7 @@ int main(int argc, char* argv[]) {
     mystepper->SetMaxiters(1000);
     mystepper->SetAbsTolerances(1e-6);
 
-    #ifdef CHRONO_VSG
+#ifdef CHRONO_VSG
     // Set up real-time visualization of the FSI system
     vis_type = ChVisualSystem::Type::VSG;
     std::shared_ptr<ChFsiVisualization> visFSI = chrono_types::make_shared<ChFsiVisualizationVSG>(&sysFSI);
@@ -316,29 +315,28 @@ int main(int argc, char* argv[]) {
     visFSI->SetImageOutput(1);
     visFSI->AttachSystem(&sysMBS);
     visFSI->Initialize();
-    #endif
+#endif
 
     // Start the simulation
     double dT = sysFSI.GetStepSize();
-    unsigned int output_steps = 25;
     unsigned int render_steps = (unsigned int)round(1 / (render_fps * dT));
     double time = 0.0;
     int current_step = 0;
     ChTimer timer;
     timer.start();
     while (time < t_end) {
-        if (output && current_step % output_steps == 0) {
+        if (output && current_step % out_fps == 0) {
             sysFSI.PrintParticleToFile(out_dir + "/particles");
             sysFSI.PrintFsiInfoToFile(out_dir + "/fsi", time);
         }
 
-        #ifdef CHRONO_VSG
+#ifdef CHRONO_VSG
         // Render SPH particles
         if (render && current_step % render_steps == 0) {
             if (!visFSI->Render())
                 break;
         }
-        #endif
+#endif
 
         if (current_step % 1000 == 0) {
             std::cout << "step: " << current_step << "\ttime: " << time << "\tRTF: " << sysFSI.GetRTF() << std::endl;
