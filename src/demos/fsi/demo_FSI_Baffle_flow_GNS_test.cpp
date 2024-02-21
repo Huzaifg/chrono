@@ -111,7 +111,7 @@ double granular_z = 0.0;
 double t_end = 0.7;
 
 // Enable/disable run-time visualization
-bool render = false;
+bool render = true;
 float render_fps = 100;
 
 // Marker viz
@@ -314,7 +314,10 @@ int main(int argc, char* argv[]) {
     visFSI->SetImageOutputDirectory(out_dir + "images");
     visFSI->SetImageOutput(1);
     visFSI->AttachSystem(&sysMBS);
-    visFSI->Initialize();
+    if (render) {
+        visFSI->Initialize();
+    }
+
 #endif
 
     // Start the simulation
