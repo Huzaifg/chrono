@@ -90,9 +90,7 @@ bool verbose = true;
 //------------------------------------------------------------------
 // Function to save wheel to Paraview VTK files
 //------------------------------------------------------------------
-void WriteWheelVTK(const std::string& filename,
-                   ChTriangleMeshConnected& mesh,
-                   const ChFrame<>& frame) {
+void WriteWheelVTK(const std::string& filename, ChTriangleMeshConnected& mesh, const ChFrame<>& frame) {
     std::ofstream outf;
     outf.open(filename);
     outf << "# vtk DataFile Version 2.0" << std::endl;
@@ -128,7 +126,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
     cmaterial->SetFriction(0.9f);
     cmaterial->SetRestitution(0.4f);
     cmaterial->SetAdhesion(0);
-    
+
     // Create a container -- always FIRST body in the system
     auto ground = chrono_types::make_shared<ChBody>();
     ground->SetIdentifier(-1);
@@ -186,7 +184,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
 
     wheel->SetBodyFixed(false);
     auto wheel_shape = chrono_types::make_shared<ChCollisionShapeTriangleMesh>(cmaterial, trimesh, false, false, 0.005);
-    wheel->GetCollisionModel()->AddShape(wheel_shape);
+    wheel->AddCollisionShape(wheel_shape);
     wheel->SetCollide(false);
 
     // Add this body to the FSI system
@@ -241,8 +239,8 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
 
     // Connect the wheel to the axle through a engine joint.
     motor->SetName("engine_wheel_axle");
-    motor->Initialize(wheel, axle, ChFrame<>(wheel->GetPos(), 
-        chrono::Q_from_AngAxis(-CH_C_PI / 2.0, ChVector<>(1, 0, 0))));
+    motor->Initialize(wheel, axle,
+                      ChFrame<>(wheel->GetPos(), chrono::Q_from_AngAxis(-CH_C_PI / 2.0, ChVector<>(1, 0, 0))));
     motor->SetAngleFunction(chrono_types::make_shared<ChFunction_Ramp>(0, wheel_AngVel));
     sysMBS.AddLink(motor);
 }

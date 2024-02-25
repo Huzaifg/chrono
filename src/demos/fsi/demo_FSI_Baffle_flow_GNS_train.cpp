@@ -66,7 +66,7 @@ double baffle_width = 0.1;      // Dimension in the y direction
 double t_end = 350 * 0.0025;
 
 // Enable/disable run-time visualization
-bool render = false;
+bool render = true;
 float render_fps = 1000;
 
 // Marker viz
@@ -423,7 +423,7 @@ int main(int argc, char* argv[]) {
     // Read the ranges of randomized parameters and json file
     RandomParams ranges;
     std::string ranges_file;
-    
+
     if (argc < 3) {
         out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TRAIN/";
         ranges_file = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train_ranges.json");
@@ -459,65 +459,77 @@ int main(int argc, char* argv[]) {
 
     std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train.json");
     std::cout << "Use the default JSON file" << std::endl;
-    
+
     sysFSI.ReadParametersFromFile(inputJson);
     sysFSI.SetNumBoundaryLayers(3);
 
     // Read the random ranges
     readRandomRanges(ranges, ranges_file);
 
-    // Set the periodic boundary condition (if not, set relative larger values)
-    auto initSpace0 = sysFSI.GetInitialSpacing();
-    ChVector<> cMin(-10, -10, -10);
-    ChVector<> cMax(10, 10, 10);
-    sysFSI.SetBoundaries(cMin, cMax);
-
-    // Create an initial box for the terrain patch
-    chrono::utils::GridSampler<> sampler(initSpace0);
-
     // Sample number of granular material piles
     int numPiles = random_int(ranges.no_granular_piles[0], ranges.no_granular_piles[1]);
     ranges.sampled_granular_piles = numPiles;
+    double max_vol_dif = 0.;
+
+    std::array<double, 2> granular_pile_size = {0.0, 0.0};
+
+    // Pre compute the pile size as we need it for the initial spacing
+    for (int i = 0; i < numPiles; i++) {
+        granular_pile_size[i] = random_double(ranges.pile_size_range[0], ranges.pile_size_range[1]);
+        auto vol = granular_pile_size[i] * granular_pile_size[i] * granular_pile_size[i];
+        auto vol_dif = vol / (0.2 * 0.2 * 0.2);
+        if (vol_dif > max_vol_dif) {
+            max_vol_dif = vol_dif;
+        }
+    }
+    // Set the periodic boundary condition (if not, set relative larger values)
+    auto initSpace0 = sysFSI.GetInitialSpacing();
+    // Scale the initial spacing according to the voldiff
+    initSpace0 = initSpace0 * std::cbrt(max_vol_dif);
+    std::cout << "Volume difference: " << max_vol_dif << std::endl;
+    std::cout << "Initial spacing: " << initSpace0 << std::endl;
+    sysFSI.SetInitialSpacing(initSpace0);
+    ChVector<> cMin(-10, -10, -10);
+    ChVector<> cMax(10, 10, 10);
+    sysFSI.SetBoundaries(cMin, cMax);
 
     // Generate the granular piles and add them to the FSI system
     for (int i = 0; i < numPiles; i++) {
         bool valid = false;
 
         double granular_x, granular_y, granular_z;
-        double granular_thickness, granular_width, granular_height;
 
         int attempt = 0;
         int max_attempts = 10000;  // Set a maximum number of attempts to avoid infinite loop
+        double granular_dim = 0;
         while (!valid && attempt < max_attempts) {
             // Sample x,y and z starting positions of granular pile
             granular_x = random_double(ranges.granular_x[0], ranges.granular_x[1]);
             granular_y = random_double(ranges.granular_y[0], ranges.granular_y[1]);
             granular_z = random_double(ranges.granular_z[0], ranges.granular_z[1]);
 
-            // Sample the dimensions of the granular pile
-            granular_thickness = random_double(ranges.pile_size_range[0], ranges.pile_size_range[1]);
-            // Cube shaped granular pile
-            granular_height = granular_thickness;
-            granular_width = granular_thickness;
-
-            valid = checkGranularPlacement(granular_x, granular_y, granular_z, granular_thickness, granular_width,
-                                           granular_height);
+            granular_dim = granular_pile_size[i];
+            valid =
+                checkGranularPlacement(granular_x, granular_y, granular_z, granular_dim, granular_dim, granular_dim);
             attempt++;  // Increment attempt counter
         }
         if (attempt == max_attempts) {
             std::cerr << "Max attempts reached for placing granular pile" << std::endl;
         }
 
+        // Create an initial box for the terrain patch
+        chrono::utils::GridSampler<> sampler(initSpace0);
+
         // Store start position in ranges
         ranges.granular_pile_start.push_back(ChVector<double>(granular_x, granular_y, granular_z));
 
         // Store granular pile size in ranges
-        ranges.granular_pile_size.push_back(ChVector<double>(granular_thickness, granular_width, granular_height));
+        ranges.granular_pile_size.push_back(ChVector<double>(granular_dim, granular_dim, granular_dim));
 
         // Use a chrono sampler to create a bucket of granular material
-        ChVector<> boxCenter(granular_x + 0.5 * granular_thickness, granular_y + 0.5 * granular_width,
-                             granular_z + 0.5 * granular_height);
-        ChVector<> boxHalfDim(0.5 * granular_thickness, 0.5 * granular_width, 0.5 * granular_height);
+        ChVector<> boxCenter(granular_x + 0.5 * granular_dim, granular_y + 0.5 * granular_dim,
+                             granular_z + 0.5 * granular_dim);
+        ChVector<> boxHalfDim(0.5 * granular_dim, 0.5 * granular_dim, 0.5 * granular_dim);
         std::vector<ChVector<>> points = sampler.SampleBox(boxCenter, boxHalfDim);
 
         // Add SPH particles from the sampler points to the FSI system
@@ -552,7 +564,7 @@ int main(int argc, char* argv[]) {
     mystepper->SetMaxiters(1000);
     mystepper->SetAbsTolerances(1e-6);
 
-    #ifdef CHRONO_VSG
+#ifdef CHRONO_VSG
     // Set up real-time visualization of the FSI system
     vis_type = ChVisualSystem::Type::VSG;
     std::shared_ptr<ChFsiVisualization> visFSI = chrono_types::make_shared<ChFsiVisualizationVSG>(&sysFSI);
@@ -568,7 +580,7 @@ int main(int argc, char* argv[]) {
     visFSI->SetSPHColorCallback(chrono_types::make_shared<DisplacementColorCallback>(0, 0.8));
     visFSI->AttachSystem(&sysMBS);
     visFSI->Initialize();
-    #endif
+#endif
 
     // Start the simulation
     double dT = sysFSI.GetStepSize();
@@ -584,13 +596,13 @@ int main(int argc, char* argv[]) {
             sysFSI.PrintFsiInfoToFile(out_dir + "/fsi", time);
         }
 
-        #ifdef CHRONO_VSG
+#ifdef CHRONO_VSG
         // Render SPH particles
         if (render && current_step % render_steps == 0) {
             if (!visFSI->Render())
                 break;
         }
-        #endif
+#endif
 
         if (current_step % 1000 == 0) {
             std::cout << "step: " << current_step << "\ttime: " << time << "\tRTF: " << sysFSI.GetRTF() << std::endl;
