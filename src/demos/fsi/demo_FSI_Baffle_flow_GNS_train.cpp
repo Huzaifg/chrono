@@ -66,7 +66,7 @@ double baffle_width = 0.1;      // Dimension in the y direction
 double t_end = 350 * 0.0025;
 
 // Enable/disable run-time visualization
-bool render = true;
+bool render = false;
 float render_fps = 1000;
 
 // Marker viz
@@ -428,7 +428,6 @@ int main(int argc, char* argv[]) {
         out_dir = GetChronoOutputPath() + "BAFFLE_FLOW_TRAIN/";
         ranges_file = GetChronoDataFile("fsi/input_json/demo_FSI_Baffle_flow_train_ranges.json");
     } else {
-        // Weird name because we already have output
         out_dir = GetChronoOutputPath() + argv[3] + "_BAFFLE_FLOW_TRAIN_" + argv[1] + "/";
         ranges_file = argv[2];
     }

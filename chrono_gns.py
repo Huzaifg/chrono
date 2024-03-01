@@ -1,94 +1,77 @@
 import numpy as np
+import sys
+import os
+from pathlib import Path
+import pandas as pd
 
 train_output = {}
 test_output = {}
+nmax = 350
 
 def convert(train_it: int, file_num: int, folder_input: str, output) -> None:
     # if (folder_input[len(folder_input) - 1] != '/'):
     #     folder_input += '/'
-    nmax = 350
-    bce_file = open(f"{folder_input}BCE_Rigid0.csv", "r")
-    next(bce_file)
-    bce_lines = len(bce_file.readlines())
-    bce = np.empty((bce_lines, 3), dtype=float)
-    bce_file.seek(0)
-    next(bce_file)
+    boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
+    header = boundary.columns
+    boundary = boundary.values
 
-    bce_i = 0
-    for line in bce_file:
-        split = line.split(', ')
-        bce[bce_i, ] = [float(split[0]), float(split[1]), float(split[2])]
-        bce_i += 1
-    bce_file.close()
+    boundary = boundary[:, :3]
+    bce_lines = boundary.shape[0]
 
-    sph_file = open(f"{folder_input}fluid0.csv", "r")
-    next(sph_file)
-    sph_lines = len(sph_file.readlines())
-    sph_file.close()
+    sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
+    header = sph_f.columns
+    sph = sph_f.values
+    sph_lines = sph.shape[0]
 
     positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=float)
-    # Broadcast fixed bce particles
-    positions[:, :bce_i, :] = bce
 
     for i in range(nmax):
-        # Stationary BCE particles at the moment, otherwise uncomment following comment
-        #bce_f = open(f"BCE_Rigid{i}.csv", "r")
-        file = open(f"{folder_input}fluid{i}.csv")
-        next(file)
-        sph_i = 0
-        for line in file:
-            split = line.split(', ')
-            positions[i, bce_i + sph_i, ] = [float(split[0]), float(split[1]), float(split[2])]
-            sph_i += 1
-        file.close()
+        sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiter=",")
+        header = sph_f.columns
+        sph = sph_f.values
+        sph = sph[:, :3]
+        positions[i, :, :] = np.concatenate((boundary, sph))
 
     bce_particle_num = np.full((bce_lines), 3, dtype=int)
     sph_particle_num = np.full((sph_lines), 6, dtype=int)
     particle_num = np.concatenate((bce_particle_num, sph_particle_num))
     
     output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
-    # np.savez_compressed("/home/thomasl/terrainmodel/test.npz", output)
 
 def test(npz_input: str) -> None:
     data_in = np.load(npz_input, allow_pickle=True)
     data = [item for _, item in data_in.items()]
-    # print(data)
-    # print(len(data))
-    # print(data[0].shape)
 
 if __name__ == "__main__":
-    # for i in range(1, 180 + 1):
-    #     convert(1, i, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
-    #     print(f"1 {i}")
-    # for i in range(181, 200 + 1):
-    #     convert(1, i, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
-    #     print(f"1 {i}")
+    try:
+        batch_size = int(sys.argv[1])
+        print(f"Batch Size: {batch_size}")
+        folder = int(sys.argv[2])
+        print(f"Folder: data_{folder}")
+    except:
+        print(f"python chrono_gns.py <batch size> <folder number>")
+    train_split = int(batch_size * 0.9)
+    
+    save_dir = f"/srv/home/sliang87/terrainmodel/data_{folder}/"
+    path = Path(save_dir)
+    if not path.exists():
+        path.mkdir()
+        os.makedirs(f"{save_dir}dataset")
+        os.makedirs(f"{save_dir}models")
+        os.makedirs(f"{save_dir}output")
 
-    # for train_it in range(2, 5 + 1):
-    #     for i in range(1, 180 + 1):
-    #         convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", train_output)
-    #         print(f"{train_it} {i}")
-    #     for i in range(181, 200 + 1):
-    #         convert(train_it, i, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{i}/particles/", test_output)
-    #         print(f"{train_it} {i}")
-
-    # train_npz_output = f"/srv/home/sliang87/terrainmodel/train.npz"
-    # np.savez_compressed(train_npz_output, **train_output)
-    # test_npz_output = f"/srv/home/sliang87/terrainmodel/test.npz"
-    # np.savez_compressed(test_npz_output, **test_output)
-
-    batch_size = 40
-    train_split = batch_size * 0.9
     for bs in range(1, train_split + 1):
         convert(1, bs, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
         for train_it in range(2, 5 + 1):
             convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
+        print(f"Round {bs} finished")
     for bs in range(train_split + 1, batch_size + 1):
         convert(1, bs, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
         for train_it in range(2, 5 + 1):
             convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
+        print(f"Round {bs} finished")
 
-    train_npz_output = f"/srv/home/sliang87/terrainmodel/train_1.npz"
+    train_npz_output = f"{save_dir}dataset/train.npz"
     np.savez_compressed(train_npz_output, **train_output)
-    test_npz_output = f"/srv/home/sliang87/terrainmodel/test_1.npz"
+    test_npz_output = f"{save_dir}dataset/test.npz"
     np.savez_compressed(test_npz_output, **test_output)
