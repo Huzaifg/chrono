@@ -13,20 +13,12 @@ set(DEMOS
   demo_SEN_radar1
 )
 
-
-
 # Demos that combine sensor simulation with vehicle dynamics
 if(ENABLE_MODULE_IRRLICHT AND ENABLE_MODULE_VEHICLE AND ENABLE_MODULE_VEHICLE_MODELS)
     set(DEMOS ${DEMOS}
       demo_SEN_HMMWV
       demo_SEN_Gator
       demo_SEN_deformableSoil
-    )
-endif()
-
-if(ENABLE_MODULE_VSG AND ENABLE_MODULE_VEHICLE AND ENABLE_MODULE_VEHICLE_MODELS)
-    set(DEMOS ${DEMOS}
-      demo_SEN_ARTcar_VO
     )
 endif()
 
@@ -55,11 +47,6 @@ if(ENABLE_MODULE_VEHICLE)
    if(ENABLE_MODULE_IRRLICHT)
       list(APPEND LIBRARIES "ChronoEngine_vehicle_irrlicht")
    endif()
-   if(ENABLE_MODULE_VSG)
-    include_directories(${CH_VSG_INCLUDES})
-    list(APPEND LIBRARIES "ChronoEngine_vsg")
-    list(APPEND LIBRARIES "ChronoEngine_vehicle_vsg")
-  endif()
    if(ENABLE_MODULE_VEHICLE_MODELS)
       list(APPEND LIBRARIES "ChronoModels_vehicle")
    endif()
