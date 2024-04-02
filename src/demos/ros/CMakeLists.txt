@@ -28,6 +28,10 @@ if(ENABLE_MODULE_SENSOR)
   list(APPEND DEMOS demo_ROS_sensor)
 endif()
 
+if(ENABLE_MODULE_SENSOR AND ENABLE_MODULE_VEHICLE)
+  list(APPEND DEMOS demo_ROS_ARTcar_VO)
+endif()
+
 # ------------------------------------------------------------------------------
 # Include directories, compiler flags, libraries
 
