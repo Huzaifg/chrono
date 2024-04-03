@@ -304,6 +304,56 @@ int main(int argc, char* argv[]) {
     // Print camera intrinsic matrix
     std::cout << "Camera 1 intrinsic matrix: " << I1 << std::endl;
     std::cout << "Camera 2 intrinsic matrix: " << I2 << std::endl;
+
+    // add an accelerometer, gyroscope, and magnetometer
+    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
+    ChVector3d gps_reference(-89.400, 43.070, 260.0);
+    auto noise_none = chrono_types::make_shared<ChNoiseNone>();
+
+    auto acc = chrono_types::make_shared<ChAccelerometerSensor>(car.GetChassisBody(), 100.f, imu_offset_pose, noise_none);
+    acc->PushFilter(chrono_types::make_shared<ChFilterAccelAccess>());
+    manager->AddSensor(acc);
+
+    auto gyro = chrono_types::make_shared<ChGyroscopeSensor>(car.GetChassisBody(), 100.f, imu_offset_pose, noise_none);
+    gyro->PushFilter(chrono_types::make_shared<ChFilterGyroAccess>());
+    manager->AddSensor(gyro);
+
+    auto mag =
+        chrono_types::make_shared<ChMagnetometerSensor>(car.GetChassisBody(), 100.f, imu_offset_pose, noise_none, gps_reference);
+    mag->PushFilter(chrono_types::make_shared<ChFilterMagnetAccess>());
+    manager->AddSensor(mag);
+
+    // ================
+    // Compute oritentation of IMU with respect to the camera
+    // ================
+    // IMU Rotation Matrix
+    ChMatrix33<double> imu_rot_matrix = imu_offset_pose.GetRotMat();
+    
+    // Camera 1
+    ChMatrix33<double> cam1_rot_matrix = offset_pose1.GetRotMat();
+    
+    // IMU to Camera 1 frame
+    ChMatrix33<double> imu_to_cam1 = cam1_rot_matrix.transpose() * imu_rot_matrix;
+
+    // Compute camera 1 frame to IMU frame
+    ChMatrix33<double> cam1_to_imu = imu_to_cam1.transpose();
+    
+    // Camera 2
+    ChMatrix33<double> cam2_rot_matrix = offset_pose2.GetRotMat();
+    // IMU to Camera 2 frame
+    ChMatrix33<double> imu_to_cam2 = cam2_rot_matrix.transpose() * imu_rot_matrix;
+    // Compute camera 2 frame to IMU frame
+    ChMatrix33<double> cam2_to_imu = imu_to_cam2.transpose();
+
+    // Print IMU to Camera 1 and Camera 2 rotation matrices
+    std::cout << "IMU to Camera Left rotation matrix: " << imu_to_cam1 << std::endl;
+    std::cout << "Camera 1 to IMU rotation matrix: " << cam1_to_imu << std::endl;
+    std::cout << "IMU to Camera Right rotation matrix: " << imu_to_cam2 << std::endl;
+    std::cout << "Camera 2 to IMU rotation matrix: " << cam2_to_imu << std::endl;
+
+    // Find transalation between IMU and Camera 1 and Camera 2
+    std::cout << "IMU to Camera 1 transalation" << offset_pose1.GetPos() << std::endl;
+    std::cout << "IMU to Camera 2 transalation" << offset_pose2.GetPos() << std::endl;
     
 
     // ---------------
