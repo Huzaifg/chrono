@@ -43,14 +43,9 @@ def test(npz_input: str) -> None:
     data = [item for _, item in data_in.items()]
 
 if __name__ == "__main__":
-    try:
-        batch_size = int(sys.argv[1])
-        print(f"Batch Size: {batch_size}")
-        folder = int(sys.argv[2])
-        print(f"Folder: data_{folder}")
-    except:
-        print(f"python chrono_gns.py <batch size> <folder number>")
-    train_split = int(batch_size * 0.9)
+    start = int(sys.argv[1])
+    train_split = int(sys.argv[2])
+    folder = sys.argv[3]
     
     save_dir = f"/srv/home/sliang87/terrainmodel/data_{folder}/"
     path = Path(save_dir)
@@ -60,15 +55,17 @@ if __name__ == "__main__":
         os.makedirs(f"{save_dir}models")
         os.makedirs(f"{save_dir}output")
 
-    for bs in range(1, train_split + 1):
-        convert(1, bs, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
-        for train_it in range(2, 5 + 1):
-            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
+    for bs in range(1, 35 + 1):
+        for train_it in range(1, 5 + 1):
+            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/BUILD_OUTPUT_CHRONO_REDUCED/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
         print(f"Round {bs} finished")
-    for bs in range(train_split + 1, batch_size + 1):
-        convert(1, bs, f"/srv/home/sliang87/terrainmodel/OUTPUT/BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
-        for train_it in range(2, 5 + 1):
-            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/chrono/build-2/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
+    for bs in range(start, train_split + 1):
+        for train_it in range(1, 5 + 1):
+            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/BUILD_OUTPUT_CHRONO_REDUCED/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
+        print(f"Round {bs} finished")
+    for bs in range(train_split + 1, train_split + 5 + 1):
+        for train_it in range(1, 5 + 1):
+            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/BUILD_OUTPUT_CHRONO_REDUCED/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
         print(f"Round {bs} finished")
 
     train_npz_output = f"{save_dir}dataset/train.npz"
