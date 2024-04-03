@@ -534,15 +534,13 @@ int main(int argc, char* argv[]) {
         // Add SPH particles from the sampler points to the FSI system
         size_t numPart = (int)points.size();
         double gz = std::abs(sysFSI.Get_G_acc().z());
+        // Sample the velocity of the granular pile -> Same velocity for all particles in the pile
+        double pile_velx = random_double(ranges.pile_velx_range[0], ranges.pile_velx_range[1]);
+        double pile_vely = random_double(ranges.pile_vely_range[0], ranges.pile_vely_range[1]);
+        double pile_velz = random_double(ranges.pile_velz_range[0], ranges.pile_velz_range[1]);
         for (int i = 0; i < numPart; i++) {
             double pre_ini = sysFSI.GetDensity() * gz * (-points[i].z() + bzDim);
             double rho_ini = sysFSI.GetDensity() + pre_ini / (sysFSI.GetSoundSpeed() * sysFSI.GetSoundSpeed());
-
-            // Sample the velocity of the granular pile
-            double pile_velx = random_double(ranges.pile_velx_range[0], ranges.pile_velx_range[1]);
-            double pile_vely = random_double(ranges.pile_vely_range[0], ranges.pile_vely_range[1]);
-            double pile_velz = random_double(ranges.pile_velz_range[0], ranges.pile_velz_range[1]);
-
             sysFSI.AddSPHParticle(points[i], rho_ini, pre_ini, sysFSI.GetViscosity(),
                                   ChVector<>(pile_velx, pile_vely, pile_velz));
         }
