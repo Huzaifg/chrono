@@ -45,6 +45,8 @@ CH_SENSOR_API ChCameraSensor::ChCameraSensor(std::shared_ptr<chrono::ChBody> par
       m_gamma(gamma),
       m_use_fog(use_fog),
       m_lens_parameters({}),
+      m_width(w),
+      m_height(h),
       ChOptixSensor(parent, updateRate, offsetPose, w * supersample_factor, h * supersample_factor) {
     // set the program to match the model requested
     // switch (lens_model) {
@@ -76,6 +78,22 @@ CH_SENSOR_API ChCameraSensor::~ChCameraSensor() {}
 void ChCameraSensor::SetRadialLensParameters(ChVector3f params) {
     m_lens_parameters = CalcInvRadialModel(params);
 }
+
+ ChMatrix33<float> ChCameraSensor::GetCameraIntrinsicMatrix() {
+    ChMatrix33<float> I;
+    float focal_length = (m_width / 2) * tanf(m_hFOV / 2);
+    I(0, 0) = focal_length;
+    I(0, 1) = 0.f;
+    I(0, 2) = m_width / 2;
+    I(1, 0) = 0.f;
+    I(1, 1) = focal_length;
+    I(1, 2) = m_height / 2;
+    I(2, 0) = 0.f;
+    I(2, 1) = 0.f;
+    I(2, 2) = 1.f;
+
+    return I;
+};
 
 LensParams ChCameraSensor::CalcInvRadialModel(ChVector3f params) {
     // coefficients directory without algorithm from

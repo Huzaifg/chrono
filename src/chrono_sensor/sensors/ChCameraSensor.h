@@ -96,6 +96,10 @@ class CH_SENSOR_API ChCameraSensor : public ChOptixSensor {
     /// @return True if it does request
     bool GetUseFog() { return m_use_fog; }
 
+    /// returns the  3x3 Intrinsic Matrix(K) of the camera
+    /// @return 3x3 ChMatrix33<flaot> Intrinsic Matrix(K) of the camera
+    ChMatrix33<float> GetCameraIntrinsicMatrix();
+
     /// calculate the parameters for the inverse polynomial model
     static LensParams CalcInvRadialModel(ChVector3f params);
 
@@ -107,6 +111,9 @@ class CH_SENSOR_API ChCameraSensor : public ChOptixSensor {
     float m_gamma;                          ///< holds the camera's gamma value
     bool m_use_fog;                         ///< holds whether the camera follows the scene fog model
     LensParams m_lens_parameters;           ///< lens parameters when applicable
+    float m_width; // width of the image formed
+    float m_height; // height of the image formed
+    ChVector3f m_distortion_params = {0.f, 0.f, 0.f};
 };
 
 /// @} sensor_sensors

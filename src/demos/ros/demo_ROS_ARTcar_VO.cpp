@@ -273,6 +273,7 @@ int main(int argc, char* argv[]) {
                                                           lens_model,            // lens model type
                                                           use_gi, 
                                                           2.2);          // lag
+    cam1->SetRadialLensParameters(ChVector3f(0.0, 0.0, 0.0));
     cam1->SetName("Camera Sensor");
     cam1->SetLag(lag);
     cam1->SetCollectionWindow(exposure_time);
@@ -294,6 +295,7 @@ int main(int argc, char* argv[]) {
                                                           lens_model,            // lens model type
                                                           use_gi, 
                                                           2.2);          // lag
+    cam2->SetRadialLensParameters(ChVector3f(0.0, 0.0, 0.0));
     cam2->SetName("Camera Sensor");
     cam2->SetLag(lag);
     cam2->SetCollectionWindow(exposure_time);

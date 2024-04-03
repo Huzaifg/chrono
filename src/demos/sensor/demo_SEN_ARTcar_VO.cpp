@@ -266,6 +266,7 @@ int main(int argc, char* argv[]) {
                                                           alias_factor,          // super sampling factor
                                                           lens_model,            // lens model type
                                                           use_gi, 2.2);          // lag
+    cam1->SetRadialLensParameters(ChVector3f(0.0, 0.0, 0.0));
     cam1->SetName("Camera Sensor");
     cam1->SetLag(lag);
     cam1->SetCollectionWindow(exposure_time);
@@ -274,6 +275,8 @@ int main(int argc, char* argv[]) {
     cam1->PushFilter(chrono_types::make_shared<ChFilterRGBA8Access>());
     // add sensor to the manager
     manager->AddSensor(cam1);
+    ChMatrix33<float> I1;
+    I1 = cam1->GetCameraIntrinsicMatrix();
 
     // Camera 2 at 59 mm in -y, along x axis and z axis
     chrono::ChFrame<double> offset_pose2({2.1, 0.59, 0.5}, QuatFromAngleAxis(0, {1, 0, 0}));
@@ -286,6 +289,7 @@ int main(int argc, char* argv[]) {
                                                           alias_factor,          // super sampling factor
                                                           lens_model,            // lens model type
                                                           use_gi, 2.2);          // lag
+    cam2->SetRadialLensParameters(ChVector3f(0.0, 0.0, 0.0));
     cam2->SetName("Camera Sensor");
     cam2->SetLag(lag);
     cam2->SetCollectionWindow(exposure_time);
@@ -294,6 +298,13 @@ int main(int argc, char* argv[]) {
     cam2->PushFilter(chrono_types::make_shared<ChFilterRGBA8Access>());
     // add sensor to the manager
     manager->AddSensor(cam2);
+    ChMatrix33<float> I2;
+    I2 = cam2->GetCameraIntrinsicMatrix();
+
+    // Print camera intrinsic matrix
+    std::cout << "Camera 1 intrinsic matrix: " << I1 << std::endl;
+    std::cout << "Camera 2 intrinsic matrix: " << I2 << std::endl;
+    
 
     // ---------------
     // Add depth camera
