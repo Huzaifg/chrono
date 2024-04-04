@@ -414,6 +414,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI, const RandomPara
                          ChVector<>(baffle_thickness, baffle_width, baffle_height), true);
         sysFSI.AddFsiBody(baffle);
     }
+    std::cout << "Number of baffles: " << numBaffles << std::endl;
 }
 
 // =============================================================================
