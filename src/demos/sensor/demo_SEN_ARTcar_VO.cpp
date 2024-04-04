@@ -329,8 +329,25 @@ int main(int argc, char* argv[]) {
     // IMU Rotation Matrix
     ChMatrix33<double> imu_rot_matrix = imu_offset_pose.GetRotMat();
     
+
     // Camera 1
     ChMatrix33<double> cam1_rot_matrix = offset_pose1.GetRotMat();
+    ChQuaternion<> first;
+    first = QuatFromAngleY(-CH_PI / 2.);
+    ChQuaternion<> second;
+    second = QuatFromAngleZ(CH_PI/2.);
+    ChFrame<double> first_frame;
+    first_frame.SetRot(first);
+    ChFrame<double> second_frame;
+    second_frame.SetRot(second);
+    
+    ChMatrix33<double> first_rot = first_frame.GetRotMat();
+    ChMatrix33<double> second_rot = second_frame.GetRotMat();
+
+    cam1_rot_matrix = second_rot * first_rot;
+
+    std::cout << "Camera 1 rotation matrix: " << cam1_rot_matrix << std::endl;
+
     
     // IMU to Camera 1 frame
     ChMatrix33<double> imu_to_cam1 = cam1_rot_matrix.transpose() * imu_rot_matrix;

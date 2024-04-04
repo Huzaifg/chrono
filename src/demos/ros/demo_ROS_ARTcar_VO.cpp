@@ -62,11 +62,26 @@ using namespace chrono::ros;
 using namespace chrono::vehicle;
 using namespace chrono::sensor;
 
+enum IMUNoiseModel {
+    NORMAL_DRIFT,  // gaussian drifting noise with noncorrelated equal distributions
+    IMU_NONE       // no noise added
+};
+// IMUNoiseModel imu_noise_type = NORMAL_DRIFT;
+IMUNoiseModel imu_noise_type = IMU_NONE;
+
+// IMU update rate in Hz
+int imu_update_rate = 10;
+
+// IMU lag (in seconds) between sensing and when data becomes accessible
+float imu_lag = 0;
+
+// IMU collection time (in seconds) of each sample
+float imu_collection_time = 0;
 // =============================================================================
 
 // Initial vehicle location and orientation
 ChVector3d initLoc(2.5, 0., 0.5);
-ChQuaternion<> initRot(1, 0, 0, 0);
+// ChQuaternion<> initRot(1, 0, 0, 0);
 
 
 // Visualization type for vehicle parts (PRIMITIVES, MESH, or NONE)
@@ -95,14 +110,14 @@ ChContactMethod contact_method = ChContactMethod::SMC;
 bool contact_vis = false;
 
 // Simulation step sizes
-double step_size = 1e-3;
+double step_size = 2e-3;
 double tire_step_size = step_size;
 
 // Simulation end time
 double t_end = 1000;
 
 // Time interval between two render frames
-double render_step_size = 1.0 / 50;  // FPS = 50
+double render_step_size = 1.0 / 25;  // FPS = 50
 
 // Output directories
 const std::string out_dir = GetChronoOutputPath() + "ARTcar";
@@ -122,14 +137,14 @@ int main(int argc, char* argv[]) {
     // --------------
     // Create systems
     // --------------
-
+    // initRot = QuatFromAngleZ(CH_PI /2.);
     // Create the Sedan vehicle, set parameters, and initialize
     artcar::ARTcar car;
     car.SetContactMethod(contact_method);
     car.SetChassisCollisionType(chassis_collision_type);
     car.SetChassisFixed(false);
     ChQuaternion<> initRot;
-    initRot.SetFromAngleAxis(CH_PI_2, ChVector3i(0, 0, 1));
+    initRot.SetFromAngleAxis(CH_PI, ChVector3i(0, 0, 1));
     car.SetInitPosition(ChCoordsys<>(initLoc, initRot));
     car.SetTireType(tire_model);
     car.SetTireStepSize(tire_step_size);
@@ -242,7 +257,7 @@ int main(int argc, char* argv[]) {
     CameraLensModelType lens_model = CameraLensModelType::PINHOLE;
 
     // Update rate in Hz
-    float update_rate = 15.f;
+    float update_rate = 10.f;
 
     // Image width and height
     unsigned int image_width = 1280;
@@ -262,7 +277,7 @@ int main(int argc, char* argv[]) {
     bool use_gi = true;  // whether cameras should use global illumination
 
     // Camera 1  at 59 mm in -y, along x axis and z axis
-    chrono::ChFrame<double> offset_pose1({2.1, -0.59, 0.5}, QuatFromAngleAxis(0, {1, 0, 0}));
+    chrono::ChFrame<double> offset_pose1({0.21, -0.25, 0.05}, QuatFromAngleAxis(0, {1, 0, 0}));
     auto cam1 = chrono_types::make_shared<ChCameraSensor>(car.GetChassisBody(),  // body camera is attached to
                                                           update_rate,           // update rate in Hz
                                                           offset_pose1,          // offset pose
@@ -284,7 +299,7 @@ int main(int argc, char* argv[]) {
     manager->AddSensor(cam1);
 
     // Camera 2 at 59 mm in -y, along x axis and z axis
-    chrono::ChFrame<double> offset_pose2({2.1, 0.59, 0.5}, QuatFromAngleAxis(0, {1, 0, 0}));
+    chrono::ChFrame<double> offset_pose2({0.21, 0.25, 0.05}, QuatFromAngleAxis(0, {1, 0, 0}));
     auto cam2 = chrono_types::make_shared<ChCameraSensor>(car.GetChassisBody(),  // body camera is attached to
                                                           update_rate,           // update rate in Hz
                                                           offset_pose2,          // offset pose
@@ -305,23 +320,77 @@ int main(int argc, char* argv[]) {
     // add sensor to the manager
     manager->AddSensor(cam2);
 
+   // ---------------------------------------------
+    // Create a IMU and add it to the sensor manager
+    // ---------------------------------------------
+    // Create the imu noise model
+    std::shared_ptr<ChNoiseModel> acc_noise_model;
+    std::shared_ptr<ChNoiseModel> gyro_noise_model;
+    std::shared_ptr<ChNoiseModel> mag_noise_model;
+    switch (imu_noise_type) {
+        case NORMAL_DRIFT:
+            // Set the imu noise model to a gaussian model
+            acc_noise_model =
+                chrono_types::make_shared<ChNoiseNormalDrift>(imu_update_rate,                    //
+                                                              ChVector3d({0., 0., 0.}),           // mean,
+                                                              ChVector3d({0.2, 0.2, 0.2}),  // stdev,
+                                                              .02,                              // bias_drift,
+                                                              .1);                                // tau_drift,
+            gyro_noise_model =
+                chrono_types::make_shared<ChNoiseNormalDrift>(imu_update_rate,                    // float updateRate,
+                                                              ChVector3d({0., 0., 0.}),           // float mean,
+                                                              ChVector3d({0.05, 0.05, 0.05}),  // float
+                                                              .00004,                               // double bias_drift,
+                                                              .1);                                // double tau_drift,
+            mag_noise_model =
+                chrono_types::make_shared<ChNoiseNormal>(ChVector3d({0., 0., 0.}),            // float mean,
+                                                         ChVector3d({0.00, 0.00, 0.00}));  // float stdev,
+            break;
+        case IMU_NONE:
+            // Set the imu noise model to none (does not affect the data)
+            acc_noise_model = chrono_types::make_shared<ChNoiseNone>();
+            gyro_noise_model = chrono_types::make_shared<ChNoiseNone>();
+            mag_noise_model = chrono_types::make_shared<ChNoiseNone>();
+            break;
+    }
+
+
+
     // add an accelerometer, gyroscope, and magnetometer
-    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
+    // chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
+    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleY( CH_PI));
+
     ChVector3d gps_reference(-89.400, 43.070, 260.0);
-    auto noise_none = chrono_types::make_shared<ChNoiseNone>();
+    auto acc = chrono_types::make_shared<ChAccelerometerSensor>(car.GetChassisBody(),    // body to which the IMU is attached
+                                                                imu_update_rate,   // update rate
+                                                                imu_offset_pose,   // offset pose from body
+                                                                acc_noise_model);  // IMU noise model
+    acc->SetName("IMU - Accelerometer");
+    acc->SetLag(imu_lag);
+    acc->SetCollectionWindow(imu_collection_time);
+    acc->PushFilter(chrono_types::make_shared<ChFilterAccelAccess>());  // Add a filter to access the imu data
+    manager->AddSensor(acc);                                            // Add the IMU sensor to the sensor manager
 
-    auto acc = chrono_types::make_shared<ChAccelerometerSensor>(car.GetChassisBody(), 100.f, imu_offset_pose, noise_none);
-    acc->PushFilter(chrono_types::make_shared<ChFilterAccelAccess>());
-    manager->AddSensor(acc);
+    auto gyro = chrono_types::make_shared<ChGyroscopeSensor>(car.GetChassisBody(),     // body to which the IMU is attached
+                                                             imu_update_rate,    // update rate
+                                                             imu_offset_pose,    // offset pose from body
+                                                             gyro_noise_model);  // IMU noise model
+    gyro->SetName("IMU - Accelerometer");
+    gyro->SetLag(imu_lag);
+    gyro->SetCollectionWindow(imu_collection_time);
+    gyro->PushFilter(chrono_types::make_shared<ChFilterGyroAccess>());  // Add a filter to access the imu data
+    manager->AddSensor(gyro);                                           // Add the IMU sensor to the sensor manager
 
-    auto gyro = chrono_types::make_shared<ChGyroscopeSensor>(car.GetChassisBody(), 100.f, imu_offset_pose, noise_none);
-    gyro->PushFilter(chrono_types::make_shared<ChFilterGyroAccess>());
-    manager->AddSensor(gyro);
-
-    auto mag =
-        chrono_types::make_shared<ChMagnetometerSensor>(car.GetChassisBody(), 100.f, imu_offset_pose, noise_none, gps_reference);
-    mag->PushFilter(chrono_types::make_shared<ChFilterMagnetAccess>());
-    manager->AddSensor(mag);
+    auto mag = chrono_types::make_shared<ChMagnetometerSensor>(car.GetChassisBody(),            // body to which the IMU is attached
+                                                               imu_update_rate,  // update rate
+                                                               imu_offset_pose,  // offset pose from body
+                                                               mag_noise_model,  // IMU noise model
+                                                               gps_reference);
+    mag->SetName("IMU - Accelerometer");
+    mag->SetLag(imu_lag);
+    mag->SetCollectionWindow(imu_collection_time);
+    mag->PushFilter(chrono_types::make_shared<ChFilterMagnetAccess>());  // Add a filter to access the imu data
+    manager->AddSensor(mag);      
 
     // ---------------
     // Add depth camera
@@ -353,7 +422,7 @@ int main(int argc, char* argv[]) {
     ros_manager->RegisterHandler(clock_handler);
 
     // cameras managers
-    auto camera_rate = cam1->GetUpdateRate();
+    auto camera_rate = cam1->GetUpdateRate() * 5;
     auto camera_topic_name_r = "~/right_camera";
     auto camera_topic_name_l = "~/left_camera";
     // adding right camera
@@ -364,7 +433,7 @@ int main(int argc, char* argv[]) {
     ros_manager->RegisterHandler(camera_handler_l);
 
     // imu manager
-    auto acc_rate = acc->GetUpdateRate();
+    auto acc_rate = acc->GetUpdateRate() * 5;
     auto acc_topic_name = "~/accelerometer";
     auto acc_handler = chrono_types::make_shared<ChROSAccelerometerHandler>(acc_rate, acc, acc_topic_name);
     ros_manager->RegisterHandler(acc_handler);
@@ -423,12 +492,6 @@ int main(int argc, char* argv[]) {
             vis->Render();
             vis->EndScene();
 
-            if (povray_output) {
-                // Zero-pad frame numbers in file names for postprocessing
-                std::ostringstream filename;
-                filename << pov_dir << "/data_" << std::setw(4) << std::setfill('0') << render_frame + 1 << ".dat";
-                utils::WriteVisualizationAssets(car.GetSystem(), filename.str());
-            }
 
             render_frame++;
         }
@@ -440,6 +503,9 @@ int main(int argc, char* argv[]) {
 
         // Get driver inputs
         DriverInputs driver_inputs = driver_vsg->GetInputs();
+        driver_inputs.m_throttle = 0.0;
+        driver_inputs.m_steering = 0.0;
+        driver_inputs.m_braking = 0.0;
 
         // Update modules (process inputs from other modules)
         driver_vsg->Synchronize(time);
