@@ -264,7 +264,7 @@ int main(int argc, char* argv[]) {
     unsigned int image_height = 720;
 
     // Camera's horizontal field of view
-    float fov = (float)CH_PI / 3.;
+    float fov = (float)CH_PI / 6.;
 
     // Lag (in seconds) between sensing and when data becomes accessible
     float lag = .0f;
@@ -277,7 +277,7 @@ int main(int argc, char* argv[]) {
     bool use_gi = true;  // whether cameras should use global illumination
 
     // Camera 1  at 59 mm in -y, along x axis and z axis
-    chrono::ChFrame<double> offset_pose1({0.21, -0.25, 0.05}, QuatFromAngleAxis(0, {1, 0, 0}));
+    chrono::ChFrame<double> offset_pose1({0.21, -0.025, 0.00}, QuatFromAngleAxis(0, {1, 0, 0}));
     auto cam1 = chrono_types::make_shared<ChCameraSensor>(car.GetChassisBody(),  // body camera is attached to
                                                           update_rate,           // update rate in Hz
                                                           offset_pose1,          // offset pose
@@ -298,7 +298,7 @@ int main(int argc, char* argv[]) {
     manager->AddSensor(cam1);
 
     // Camera 2 at 59 mm in -y, along x axis and z axis
-    chrono::ChFrame<double> offset_pose2({0.21, 0.25, 0.05}, QuatFromAngleAxis(0, {1, 0, 0}));
+    chrono::ChFrame<double> offset_pose2({0.21, 0.025, 0.00}, QuatFromAngleAxis(0, {1, 0, 0}));
     auto cam2 = chrono_types::make_shared<ChCameraSensor>(car.GetChassisBody(),  // body camera is attached to
                                                           update_rate,           // update rate in Hz
                                                           offset_pose2,          // offset pose
@@ -424,10 +424,10 @@ int main(int argc, char* argv[]) {
     auto camera_topic_name_r = "~/right_camera";
     auto camera_topic_name_l = "~/left_camera";
     // adding right camera
-    auto camera_handler_r = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam1, camera_topic_name_r);
+    auto camera_handler_r = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam2, camera_topic_name_r);
     ros_manager->RegisterHandler(camera_handler_r);
     // adding left camera
-    auto camera_handler_l = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam2, camera_topic_name_l);
+    auto camera_handler_l = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam1, camera_topic_name_l);
     ros_manager->RegisterHandler(camera_handler_l);
 
     // imu manager
@@ -501,9 +501,9 @@ int main(int argc, char* argv[]) {
 
         // Get driver inputs
         DriverInputs driver_inputs = driver_vsg->GetInputs();
-        driver_inputs.m_throttle = 0.0;
-        driver_inputs.m_steering = 0.0;
-        driver_inputs.m_braking = 0.0;
+        // driver_inputs.m_throttle = 0.3;
+        // driver_inputs.m_steering = 0.0;
+        // driver_inputs.m_braking = 0.0;
 
         // Update modules (process inputs from other modules)
         driver_vsg->Synchronize(time);
