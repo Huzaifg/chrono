@@ -307,7 +307,7 @@ int main(int argc, char* argv[]) {
                                                           fov,                   // camera's horizontal field of view
                                                           alias_factor,          // super sampling factor
                                                           lens_model,            // lens model type
-                                                          use_gi) // Use global illumination
+                                                          use_gi); // Use global illumination
     cam2->SetRadialLensParameters(ChVector3f(0.0, 0.0, 0.0));
     cam2->SetName("Camera Sensor");
     cam2->SetLag(lag);
