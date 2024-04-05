@@ -43,33 +43,33 @@ using namespace chrono::sensor;
 // -----------------------------------------------------------------------------
 
 // Camera lens model
-CameraLensModelType lens_model = CameraLensModelType::RADIAL;
-// CameraLensModelType lens_model = CameraLensModelType::PINHOLE;
+// CameraLensModelType lens_model = CameraLensModelType::RADIAL;
+CameraLensModelType lens_model = CameraLensModelType::PINHOLE;
 
 // Update rate in Hz
-float update_rate = 30;
+float update_rate = 10;
 
 // Image width and height
 unsigned int image_width = 1280;
 unsigned int image_height = 720;
 
 // Camera's horizontal field of view
-float fov = 1.431f;
+float fov = (float)CH_PI / 3.;
 
 // Lag (in seconds) between sensing and when data becomes accessible
 float lag = 0.f;
 
 // Exposure (in seconds) of each image
-float exposure_time = 0.0f;
+float exposure_time = 0.02f;
 
-int alias_factor = 1;
+int alias_factor = 2;
 
 // -----------------------------------------------------------------------------
 // Simulation parameters
 // -----------------------------------------------------------------------------
 
 // Simulation step size
-double step_size = 1e-2;
+double step_size = 2e-3;
 
 // Simulation end time
 float end_time = 4.0f;
@@ -78,7 +78,7 @@ float end_time = 4.0f;
 bool save = true;
 
 // Render camera images
-bool vis = true;
+bool vis = false;
 
 // Output directory
 const std::string out_dir = "SENSOR_OUTPUT/";
@@ -114,7 +114,10 @@ int main(int argc, char* argv[]) {
     // Create a sensor manager
     // -----------------------
     auto manager = chrono_types::make_shared<ChSensorManager>(&mphysicalSystem);
-    manager->scene->AddPointLight({-10.f, 0.0f, 0.f}, {2.0f / 2, 1.8902f / 2, 1.7568f / 2}, 50.0f);
+    float intensity = 1.0;
+    // manager->scene->AddPointLight({-10.f, 0.0f, 0.f}, {2.0f / 2, 1.8902f / 2, 1.7568f / 2}, 50.0f);
+    // manager->scene->AddPointLight({0, 0, 5}, {intensity, intensity, intensity}, 500);
+    manager->scene->AddPointLight({-10.f, 0.0f, 0.f}, {intensity, intensity, intensity}, 500.0f);
 
     // -------------------------------------------------------
     // Create a camera and add it to the sensor manager
@@ -128,8 +131,10 @@ int main(int argc, char* argv[]) {
                                                          fov,           // camera's horizontal field of view
                                                          alias_factor,  // supersample factor for antialiasing
                                                          lens_model,    // FOV
-                                                         false);        // use global illumination or not
-    cam->SetRadialLensParameters({-0.369f, 0.1257f, -0.0194f});
+                                                         true);        // use global illumination or not
+    // cam->SetRadialLensParameters({-0.369f, 0.1257f, -0.0194f});
+    cam->SetRadialLensParameters({0., 0., 0.});
+
     if (vis)
         cam->PushFilter(chrono_types::make_shared<ChFilterVisualize>(image_width, image_height, ""));
     if (save)
