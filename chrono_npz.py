@@ -43,6 +43,13 @@ def convert(train_it, file_num, folder_input, output, iter) -> None:
                 vel_mean[1] += np.sum(sph[5])
                 acc_mean += np.sum(sph[7])
                 total_lines += sph.shape[0]
+                sph = sph[:, :3]
+                # Swap y and z for GNS
+                sph[:, [2, 1]] = sph[:, [1, 2]]
+                if (train_it < 5):
+                    positions[i, :, :] = np.concatenate((boundary, sph))
+                else:
+                    positions[i, :, :] = sph
             else:
                 vel_std[0] += np.sum(np.square(sph[3] - vel_mean[0]))
                 # This is intentional: y and z are swapped
@@ -50,21 +57,14 @@ def convert(train_it, file_num, folder_input, output, iter) -> None:
                 vel_std[1] += np.sum(np.square(sph[5] - vel_mean[1]))
                 acc_std += np.sum(np.square(sph[7] - acc_mean))
 
-            sph = sph[:, :3]
-            # Swap y and z for GNS
-            sph[:, [2, 1]] = sph[:, [1, 2]]
-            if (train_it < 5):
-                positions[i, :, :] = np.concatenate((boundary, sph))
-            else:
-                positions[i, :, :] = sph
-
-        bce_particle_num = np.full((bce_lines), 3, dtype=int)
-        sph_particle_num = np.full((sph_lines), 6, dtype=int)
-        particle_num = np.concatenate((bce_particle_num, sph_particle_num))
-        
-        output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
-        sims += 1
-        print(f"Finished {folder_input}")
+        if (iter == 0):
+            bce_particle_num = np.full((bce_lines), 3, dtype=int)
+            sph_particle_num = np.full((sph_lines), 6, dtype=int)
+            particle_num = np.concatenate((bce_particle_num, sph_particle_num))
+            
+            output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
+            sims += 1
+            print(f"Finished {folder_input}")
     except:
         print(f"Error at {folder_input}. Ignoring this simulation trajectory and moving on.")
 
