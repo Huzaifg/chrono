@@ -15,14 +15,17 @@ nmax = 350
 def convert(train_it, file_num, folder_input, output, iter) -> None:
     global total_lines, acc_mean, acc_std
 
-    boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
-    boundary = boundary.values
-    boundary = boundary[:, :3]
-    bce_lines = boundary.shape[0]
+    if (train_it < 5):
+        boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
+        boundary = boundary.to_numpy(dtype=np.float32)
+        boundary = boundary[:, :3]
+        bce_lines = boundary.shape[0]
+    else:
+        bce_lines = 0
 
     # Only to create positions array
     sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
-    sph = sph_f.values
+    sph = sph_f.to_numpy(dtype=np.float32)
     sph_lines = sph.shape[0]
     positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=np.float32)
 
@@ -48,7 +51,10 @@ def convert(train_it, file_num, folder_input, output, iter) -> None:
         sph = sph[:, :3]
         # Swap y and z for GNS
         sph[:, [2, 1]] = sph[:, [1, 2]]
-        positions[i, :, :] = np.concatenate((boundary, sph))
+        if (train_it < 5):
+            positions[i, :, :] = np.concatenate((boundary, sph))
+        else:
+            positions[i, :, :] = sph
 
     bce_particle_num = np.full((bce_lines), 3, dtype=int)
     sph_particle_num = np.full((sph_lines), 6, dtype=int)
