@@ -33,7 +33,7 @@ def convert(train_it, file_num, folder_input, output, iter) -> None:
 
         for i in range(nmax):
             sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiter=",")
-            sph = sph_f.values
+            sph = sph_f.to_numpy(dtype=np.float32)
 
             # Calculate mean and variance first
             if (iter == 0):
