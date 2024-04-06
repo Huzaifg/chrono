@@ -1,35 +1,53 @@
 import numpy as np
 import sys
-import os
 from pathlib import Path
 import pandas as pd
 
 train_output = {}
 test_output = {}
+vel_mean = np.zeros((3), dtype=float)
+vel_std = np.zeros((3), dtype=float)
+acc_mean = 0
+acc_std = 0
+total_lines = 0
 nmax = 350
 
-def convert(train_it: int, file_num: int, folder_input: str, output) -> None:
-    # if (folder_input[len(folder_input) - 1] != '/'):
-    #     folder_input += '/'
-    boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
-    header = boundary.columns
-    boundary = boundary.values
+def convert(train_it, file_num, folder_input, output, iter) -> None:
+    global total_lines, acc_mean, acc_std
 
+    boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
+    boundary = boundary.values
     boundary = boundary[:, :3]
     bce_lines = boundary.shape[0]
 
+    # Only to create positions array
     sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
-    header = sph_f.columns
     sph = sph_f.values
     sph_lines = sph.shape[0]
-
-    positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=float)
+    positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=np.float32)
 
     for i in range(nmax):
         sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiter=",")
-        header = sph_f.columns
         sph = sph_f.values
+
+        # Calculate mean and variance first
+        if (iter == 0):
+            vel_mean[0] += np.sum(sph[3])
+            # This is intentional: y and z are swapped
+            vel_mean[2] += np.sum(sph[4])
+            vel_mean[1] += np.sum(sph[5])
+            acc_mean += np.sum(sph[7])
+            total_lines += sph.shape[0]
+        else:
+            vel_std[0] += np.sum(np.square(sph[3] - vel_mean[0]))
+            # This is intentional: y and z are swapped
+            vel_std[2] += np.sum(np.square(sph[4] - vel_mean[2]))
+            vel_std[1] += np.sum(np.square(sph[5] - vel_mean[1]))
+            acc_std += np.sum(np.square(sph[7] - acc_mean))
+
         sph = sph[:, :3]
+        # Swap y and z for GNS
+        sph[:, [2, 1]] = sph[:, [1, 2]]
         positions[i, :, :] = np.concatenate((boundary, sph))
 
     bce_particle_num = np.full((bce_lines), 3, dtype=int)
@@ -38,35 +56,37 @@ def convert(train_it: int, file_num: int, folder_input: str, output) -> None:
     
     output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
 
-def test(npz_input: str) -> None:
-    data_in = np.load(npz_input, allow_pickle=True)
-    data = [item for _, item in data_in.items()]
-
 if __name__ == "__main__":
     start = int(sys.argv[1])
-    train_split = int(sys.argv[2])
     folder = sys.argv[3]
     
+    train_split = 197
     save_dir = f"/srv/home/sliang87/terrainmodel/data_{folder}/"
-    path = Path(save_dir)
-    if not path.exists():
-        path.mkdir()
-        os.makedirs(f"{save_dir}dataset")
-        os.makedirs(f"{save_dir}models")
-        os.makedirs(f"{save_dir}output")
+    Path("{save_dir}datasets").mkdir(exist_ok=True)
+    Path("{save_dir}models").mkdir(exist_ok=True)
+    Path("{save_dir}output").mkdir(exist_ok=True)
 
-    for bs in range(1, 35 + 1):
-        for train_it in range(1, 5 + 1):
-            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/BUILD_OUTPUT_CHRONO_REDUCED/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
-        print(f"Round {bs} finished")
-    for bs in range(start, train_split + 1):
-        for train_it in range(1, 5 + 1):
-            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/BUILD_OUTPUT_CHRONO_REDUCED/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output)
-        print(f"Round {bs} finished")
-    for bs in range(train_split + 1, train_split + 5 + 1):
-        for train_it in range(1, 5 + 1):
-            convert(train_it, bs, f"/srv/home/sliang87/terrainmodel/BUILD_OUTPUT_CHRONO_REDUCED/bin/DEMO_OUTPUT/{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output)
-        print(f"Round {bs} finished")
+    DEMO_PARENT = "/work/09874/tliangwi/ls6/chrono/build/bin/DEMO_OUTPUT/"
+
+    for iter in range(2):
+        for bs in range(start, train_split + 1):
+            for train_it in range(1, 5 + 1):
+                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iter)
+            print(f"Round {bs} finished")
+        for bs in range(train_split + 1, 200 - train_split + 1):
+            for train_it in range(1, 5 + 1):
+                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, iter)
+            print(f"Round {bs} finished")
+
+    vel_mean /= (total_lines)
+    acc_mean /= (total_lines)
+    vel_std /= (total_lines)
+    acc_std /= (total_lines)
+
+    print(f"VELOCITY MEAN: {vel_mean}")
+    print(f"ACCELERATION MEAN: {acc_mean}")
+    print(f"VELOCITY VARIANCE (Use sqrt): {vel_std}")
+    print(f"ACCELERATION VARIANCE (Use sqrt): {acc_std}")
 
     train_npz_output = f"{save_dir}dataset/train.npz"
     np.savez_compressed(train_npz_output, **train_output)
