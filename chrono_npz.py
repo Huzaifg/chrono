@@ -13,12 +13,12 @@ total_lines = 0
 sims = 0
 nmax = 350
 
-def convert(train_it, file_num, folder_input, output, iter) -> None:
+def convert(train_it, file_num, folder_input, output, iteration) -> None:
     global total_lines, acc_mean, acc_std, sims
 
     try:
         if (train_it < 5):
-            boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
+            boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiteration=",")
             boundary = boundary.to_numpy(dtype=np.float32)
             boundary = boundary[:, :3]
             bce_lines = boundary.shape[0]
@@ -26,17 +26,17 @@ def convert(train_it, file_num, folder_input, output, iter) -> None:
             bce_lines = 0
 
         # Only to create positions array
-        sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
+        sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiteration=",")
         sph = sph_f.to_numpy(dtype=np.float32)
         sph_lines = sph.shape[0]
         positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=np.float32)
 
         for i in range(nmax):
-            sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiter=",")
+            sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiteration=",")
             sph = sph_f.to_numpy(dtype=np.float32)
 
             # Calculate mean and variance first
-            if (iter == 0):
+            if (iteration == 0):
                 vel_mean[0] += np.sum(sph[3])
                 # This is intentional: y and z are swapped
                 vel_mean[2] += np.sum(sph[4])
@@ -57,7 +57,7 @@ def convert(train_it, file_num, folder_input, output, iter) -> None:
                 vel_std[1] += np.sum(np.square(sph[5] - vel_mean[1]))
                 acc_std += np.sum(np.square(sph[7] - acc_mean))
 
-        if (iter == 0):
+        if (iteration == 0):
             bce_particle_num = np.full((bce_lines), 3, dtype=int)
             sph_particle_num = np.full((sph_lines), 6, dtype=int)
             particle_num = np.concatenate((bce_particle_num, sph_particle_num))
@@ -74,19 +74,20 @@ if __name__ == "__main__":
     
     train_split = 197
     save_dir = f"/work/09874/tliangwi/ls6/{folder}/"
-    Path(f"{save_dir}datasets").mkdir(exist_ok=True)
+    dataset_dir = f"{save_dir}datasets/"
+    Path(dataset_dir).mkdir(exist_ok=True)
     Path(f"{save_dir}models").mkdir(exist_ok=True)
     Path(f"{save_dir}output").mkdir(exist_ok=True)
 
-    DEMO_PARENT = "/work/09874/tliangwi/ls6/chrono/build/bin/DEMO_OUTPUT/"
+    DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
 
-    for iter in range(2):
+    for iteration in range(2):
         for bs in range(start, train_split + 1):
             for train_it in range(1, 5 + 1):
-                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iter)
-        for bs in range(train_split + 1, 200 - train_split + 1):
+                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iteration)
+        for bs in range(train_split + 1, 200 + 1):
             for train_it in range(1, 5 + 1):
-                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, iter)
+                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, iteration)
 
     vel_mean /= (total_lines)
     acc_mean /= (total_lines)
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     print(f"ACCELERATION VARIANCE (Use sqrt): {acc_std}")
     print(f"SIMULATIONS COMPLETED: {sims}")
 
-    train_npz_output = f"{save_dir}dataset/train.npz"
+    train_npz_output = f"{dataset_dir}train.npz"
     np.savez_compressed(train_npz_output, **train_output)
-    test_npz_output = f"{save_dir}dataset/test.npz"
+    test_npz_output = f"{dataset_dir}test.npz"
     np.savez_compressed(test_npz_output, **test_output)
