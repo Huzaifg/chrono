@@ -18,7 +18,7 @@ def convert(train_it, file_num, folder_input, output, iteration) -> None:
 
     try:
         if (train_it < 5):
-            boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiteration=",")
+            boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
             boundary = boundary.to_numpy(dtype=np.float32)
             boundary = boundary[:, :3]
             bce_lines = boundary.shape[0]
@@ -26,13 +26,13 @@ def convert(train_it, file_num, folder_input, output, iteration) -> None:
             bce_lines = 0
 
         # Only to create positions array
-        sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiteration=",")
+        sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
         sph = sph_f.to_numpy(dtype=np.float32)
         sph_lines = sph.shape[0]
         positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=np.float32)
 
         for i in range(nmax):
-            sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiteration=",")
+            sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiter=",")
             sph = sph_f.to_numpy(dtype=np.float32)
 
             # Calculate mean and variance first
