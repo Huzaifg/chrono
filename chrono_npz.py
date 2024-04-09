@@ -13,7 +13,7 @@ total_lines = 0
 sims = 0
 nmax = 350
 
-def convert(train_it, file_num, folder_input, output, iteration) -> None:
+def convert(train_it, file_num, folder_input, output, iteration, train) -> None:
     global total_lines, acc_mean, acc_std, sims
 
     try:
@@ -36,7 +36,7 @@ def convert(train_it, file_num, folder_input, output, iteration) -> None:
             sph = sph_f.to_numpy(dtype=np.float32)
 
             # Calculate mean and variance first
-            if (iteration == 0):
+            if (train and iteration == 0):
                 vel_mean[0] += np.sum(sph[3])
                 # This is intentional: y and z are swapped
                 vel_mean[2] += np.sum(sph[4])
@@ -50,14 +50,15 @@ def convert(train_it, file_num, folder_input, output, iteration) -> None:
                     positions[i, :, :] = np.concatenate((boundary, sph))
                 else:
                     positions[i, :, :] = sph
-            else:
+            elif (train and iteration == 1):
                 vel_std[0] += np.sum(np.square(sph[3] - vel_mean[0]))
                 # This is intentional: y and z are swapped
                 vel_std[2] += np.sum(np.square(sph[4] - vel_mean[2]))
                 vel_std[1] += np.sum(np.square(sph[5] - vel_mean[1]))
                 acc_std += np.sum(np.square(sph[7] - acc_mean))
+                print(f"Finished calculating variance for {folder_input}")
 
-        if (iteration == 0):
+        if (train and iteration == 0):
             bce_particle_num = np.full((bce_lines), 3, dtype=int)
             sph_particle_num = np.full((sph_lines), 6, dtype=int)
             particle_num = np.concatenate((bce_particle_num, sph_particle_num))
@@ -68,39 +69,40 @@ def convert(train_it, file_num, folder_input, output, iteration) -> None:
     except:
         print(f"Error at {folder_input}. Ignoring this simulation trajectory and moving on.")
 
-if __name__ == "__main__":
-    start = int(sys.argv[1])
-    folder = sys.argv[2]
-    
-    train_split = 197
-    save_dir = f"/work/09874/tliangwi/ls6/{folder}/"
-    dataset_dir = f"{save_dir}datasets/"
-    Path(dataset_dir).mkdir(exist_ok=True)
-    Path(f"{save_dir}models").mkdir(exist_ok=True)
-    Path(f"{save_dir}output").mkdir(exist_ok=True)
+start = int(sys.argv[1])
+folder = sys.argv[2]
 
-    DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
+train_split = 197
+save_dir = f"/work/09874/tliangwi/ls6/{folder}/"
+dataset_dir = f"{save_dir}datasets/"
+Path(dataset_dir).mkdir(exist_ok=True)
+Path(f"{save_dir}models").mkdir(exist_ok=True)
+Path(f"{save_dir}output").mkdir(exist_ok=True)
 
-    for iteration in range(2):
-        for bs in range(start, train_split + 1):
-            for train_it in range(1, 5 + 1):
-                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iteration)
-        for bs in range(train_split + 1, 200 + 1):
-            for train_it in range(1, 5 + 1):
-                convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, iteration)
+DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
+
+for iteration in range(2):
+    for bs in range(start, train_split + 1):
+        for train_it in range(1, 5 + 1):
+            convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iteration, True)
 
     vel_mean /= (total_lines)
     acc_mean /= (total_lines)
-    vel_std /= (total_lines)
-    acc_std /= (total_lines)
+    
+    for bs in range(train_split + 1, 200 + 1):
+        for train_it in range(1, 5 + 1):
+            convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, iteration, False)
 
-    print(f"VELOCITY MEAN: {vel_mean}")
-    print(f"ACCELERATION MEAN: {acc_mean}")
-    print(f"VELOCITY VARIANCE (Use sqrt): {vel_std}")
-    print(f"ACCELERATION VARIANCE (Use sqrt): {acc_std}")
-    print(f"SIMULATIONS COMPLETED: {sims}")
+vel_std /= (total_lines)
+acc_std /= (total_lines)
 
-    train_npz_output = f"{dataset_dir}train.npz"
-    np.savez_compressed(train_npz_output, **train_output)
-    test_npz_output = f"{dataset_dir}test.npz"
-    np.savez_compressed(test_npz_output, **test_output)
+print(f"VELOCITY MEAN: {vel_mean}")
+print(f"ACCELERATION MEAN: {acc_mean}")
+print(f"VELOCITY VARIANCE (Use sqrt): {vel_std}")
+print(f"ACCELERATION VARIANCE (Use sqrt): {acc_std}")
+print(f"SIMULATIONS COMPLETED: {sims}")
+
+train_npz_output = f"{dataset_dir}train.npz"
+np.savez_compressed(train_npz_output, **train_output)
+test_npz_output = f"{dataset_dir}test.npz"
+np.savez_compressed(test_npz_output, **test_output)
