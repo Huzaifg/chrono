@@ -292,6 +292,7 @@ class CH_FSI_API ChSystemFsi {
     /// Save the SPH particle information into files.
     /// This function creates three CSV files for SPH particles, boundary BCE markers, and solid BCE markers data.
     void PrintParticleToFile(const std::string& dir) const;
+    void PrintParticleToFile(const std::string& dir, const bool withAccComp) const;
 
     /// Save the FSI information into files.
     /// This function creates CSV files for force and torque on rigid bodies and flexible nodes.

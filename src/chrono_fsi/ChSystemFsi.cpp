@@ -990,6 +990,13 @@ void ChSystemFsi::PrintParticleToFile(const std::string& dir) const {
                                m_sysFSI->fsiGeneralData->referenceArray_FEA, dir, m_paramsH);
 }
 
+void ChSystemFsi::PrintParticleToFile(const std::string& dir, const bool withAccComp) const {
+    utils::PrintParticleToFile(m_sysFSI->sphMarkersD2->posRadD, m_sysFSI->sphMarkersD2->velMasD,
+                               m_sysFSI->sphMarkersD2->rhoPresMuD, m_sysFSI->fsiGeneralData->sr_tau_I_mu_i,
+                               m_sysFSI->fsiGeneralData->derivVelRhoD, m_sysFSI->fsiGeneralData->referenceArray,
+                               m_sysFSI->fsiGeneralData->referenceArray_FEA, dir, m_paramsH, withAccComp);
+}
+
 void ChSystemFsi::PrintFsiInfoToFile(const std::string& dir, double time) const {
     utils::PrintFsiInfoToFile(m_sysFSI->fsiBodiesD2->posRigid_fsiBodies_D,
                               m_sysFSI->fsiBodiesD2->velMassRigid_fsiBodies_D, m_sysFSI->fsiBodiesD2->q_fsiBodies_D,

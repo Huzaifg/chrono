@@ -590,7 +590,7 @@ int main(int argc, char* argv[]) {
     timer.start();
     while (time < t_end) {
         if (output && current_step % output_steps == 0) {
-            sysFSI.PrintParticleToFile(out_dir + "/particles");
+            sysFSI.PrintParticleToFile(out_dir + "/particles", true);
             sysFSI.PrintFsiInfoToFile(out_dir + "/fsi", time);
         }
 

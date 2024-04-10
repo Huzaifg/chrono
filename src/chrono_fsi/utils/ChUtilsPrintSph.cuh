@@ -46,6 +46,22 @@ CH_FSI_API void PrintParticleToFile(const thrust::device_vector<Real4>& posRadD,
                                     const thrust::host_vector<int4>& referenceArrayFEA,
                                     const std::string& dir,
                                     const std::shared_ptr<SimParams>& paramsH);
+
+/// Helper function to save the SPH data into files.
+/// When called, this function creates three files to write fluid,
+/// boundary and BCE particles data into files. Additionally, it writes
+/// the x,y and z compoenents of the acceleration in addition to the magnitude
+// acceleration of the fluid particles.
+CH_FSI_API void PrintParticleToFile(const thrust::device_vector<Real4>& posRadD,
+                         const thrust::device_vector<Real3>& velMasD,
+                         const thrust::device_vector<Real4>& rhoPresMuD,
+                         const thrust::device_vector<Real4>& sr_tau_I_mu_i,
+                         const thrust::device_vector<Real4>& derivVelRhoD,
+                         const thrust::host_vector<int4>& referenceArray,
+                         const thrust::host_vector<int4>& referenceArrayFEA,
+                         const std::string& dir,
+                         const std::shared_ptr<SimParams>& paramsH,
+                         const bool withAccComp);
                                 
 /// Helper function to save the FSI information into files.
 /// When called, this function creates files to write position,
