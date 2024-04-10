@@ -20,6 +20,7 @@ export LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
 
 PARENT="/work/09874/tliangwi/ls6/"
 source "${PARENT}/gns/venv/bin/activate"
+pip install pandas
 
-cd $PARENT/new_chrono/
+cd $PARENT/chrono
 python -u chrono_npz.py 1 data_chrono

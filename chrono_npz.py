@@ -86,8 +86,9 @@ for iteration in range(2):
         for train_it in range(1, 5 + 1):
             convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iteration, True)
 
-    vel_mean /= (total_lines)
-    acc_mean /= (total_lines)
+    if (iteration == 0):
+        vel_mean /= (total_lines)
+        acc_mean /= (total_lines)
     
     for bs in range(train_split + 1, 200 + 1):
         for train_it in range(1, 5 + 1):
@@ -100,7 +101,8 @@ print(f"VELOCITY MEAN: {vel_mean}")
 print(f"ACCELERATION MEAN: {acc_mean}")
 print(f"VELOCITY VARIANCE (Use sqrt): {vel_std}")
 print(f"ACCELERATION VARIANCE (Use sqrt): {acc_std}")
-print(f"SIMULATIONS COMPLETED: {sims}")
+print(f"TRAINING SIMULATIONS COMPLETED: {sims}")
+print(f"TOTAL LINES: {total_lines}")
 
 train_npz_output = f"{dataset_dir}train.npz"
 np.savez_compressed(train_npz_output, **train_output)
