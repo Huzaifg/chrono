@@ -56,6 +56,8 @@
 #include "chrono/assets/ChVisualMaterial.h"
 #include "chrono/geometry/ChTriangleMeshConnected.h"
 
+#include <chrono>
+
 using namespace chrono;
 using namespace chrono::vsg3d;
 using namespace chrono::ros;
@@ -70,7 +72,7 @@ enum IMUNoiseModel {
 IMUNoiseModel imu_noise_type = IMU_NONE;
 
 // IMU update rate in Hz
-int imu_update_rate = 10;
+int imu_update_rate = 1000;
 
 // IMU lag (in seconds) between sensing and when data becomes accessible
 float imu_lag = 0;
@@ -108,9 +110,10 @@ ChVector3d trackPoint(0.0, 0.0, 0.2);
 // Contact method
 ChContactMethod contact_method = ChContactMethod::SMC;
 bool contact_vis = false;
+bool render = true;
 
 // Simulation step sizes
-double step_size = 2e-3;
+double step_size = 1e-3;
 double tire_step_size = step_size;
 
 // Simulation end time
@@ -195,7 +198,7 @@ int main(int argc, char* argv[]) {
     // vis->AddSkyBox();
     // vis->AddLogo();
     // vis->AttachVehicle(&car.GetVehicle());
-
+    
     auto vis = chrono_types::make_shared<ChWheeledVehicleVisualSystemVSG>();
     vis->SetWindowTitle("ARTcar Demo");
     vis->AttachVehicle(&car.GetVehicle());
@@ -260,7 +263,7 @@ int main(int argc, char* argv[]) {
     float update_rate = 10.f;
 
     // Image width and height
-    unsigned int image_width = 1280;
+    unsigned int image_width = 720;
     unsigned int image_height = 720;
 
     // Camera's horizontal field of view
@@ -291,7 +294,7 @@ int main(int argc, char* argv[]) {
     cam1->SetName("Camera Sensor");
     cam1->SetLag(lag);
     cam1->SetCollectionWindow(exposure_time);
-    cam1->PushFilter(chrono_types::make_shared<ChFilterVisualize>(640, 360, "right camera"));
+    // cam1->PushFilter(chrono_types::make_shared<ChFilterVisualize>(640, 360, "right camera"));
     // Provides the host access to this RGBA8 buffer
     cam1->PushFilter(chrono_types::make_shared<ChFilterRGBA8Access>());
     // add sensor to the manager
@@ -312,7 +315,7 @@ int main(int argc, char* argv[]) {
     cam2->SetName("Camera Sensor");
     cam2->SetLag(lag);
     cam2->SetCollectionWindow(exposure_time);
-    cam2->PushFilter(chrono_types::make_shared<ChFilterVisualize>(640, 360, "left camera"));
+    // cam2->PushFilter(chrono_types::make_shared<ChFilterVisualize>(640, 360, "left camera"));
     // Provides the host access to this RGBA8 buffer
     cam2->PushFilter(chrono_types::make_shared<ChFilterRGBA8Access>());
     // add sensor to the manager
@@ -420,7 +423,7 @@ int main(int argc, char* argv[]) {
     ros_manager->RegisterHandler(clock_handler);
 
     // cameras managers
-    auto camera_rate = cam1->GetUpdateRate() * 5;
+    auto camera_rate = cam1->GetUpdateRate();
     auto camera_topic_name_r = "~/right_camera";
     auto camera_topic_name_l = "~/left_camera";
     // adding right camera
@@ -431,7 +434,8 @@ int main(int argc, char* argv[]) {
     ros_manager->RegisterHandler(camera_handler_l);
 
     // imu manager
-    auto acc_rate = acc->GetUpdateRate() * 5;
+    auto acc_rate = acc->GetUpdateRate();
+    std::cout << "IMU RATE: " << acc_rate << std::endl;
     auto acc_topic_name = "~/accelerometer";
     auto acc_handler = chrono_types::make_shared<ChROSAccelerometerHandler>(acc_rate, acc, acc_topic_name);
     ros_manager->RegisterHandler(acc_handler);
@@ -448,7 +452,7 @@ int main(int argc, char* argv[]) {
 
     // Create the publisher for _all_ imu sensors
     auto imu_topic_name = "~/imu";
-    auto imu_handler = chrono_types::make_shared<ChROSIMUHandler>(100, imu_topic_name);
+    auto imu_handler = chrono_types::make_shared<ChROSIMUHandler>(acc_rate, imu_topic_name);
     imu_handler->SetAccelerometerHandler(acc_handler);
     imu_handler->SetGyroscopeHandler(gyro_handler);
     imu_handler->SetMagnetometerHandler(mag_handler);
@@ -476,7 +480,10 @@ int main(int argc, char* argv[]) {
     int step_number = 0;
     int render_frame = 0;
 
-    car.GetVehicle().EnableRealtime(true);
+    // car.GetVehicle().EnableRealtime(true);
+        // Start timing
+    auto overall_start = std::chrono::high_resolution_clock::now();
+    double previous_time = 0.0; // Assuming simulation starts at time = 0.0
     while (vis->Run()) {
         double time = car.GetSystem()->GetChTime();
 
@@ -485,23 +492,20 @@ int main(int argc, char* argv[]) {
             break;
 
         // Render scene and output POV-Ray data
-        if (step_number % render_steps == 0) {
-            vis->BeginScene();
-            vis->Render();
-            vis->EndScene();
+        if(render){
+            if (step_number % render_steps == 0) {
+                vis->BeginScene();
+                vis->Render();
+                vis->EndScene();
 
 
-            render_frame++;
-        }
-
-        // Debug logging
-        if (debug_output && step_number % debug_steps == 0) {
-            car.DebugLog(OUT_SPRINGS | OUT_SHOCKS | OUT_CONSTRAINTS);
+                render_frame++;
+            }
         }
 
         // Get driver inputs
         DriverInputs driver_inputs = driver_vsg->GetInputs();
-        // driver_inputs.m_throttle = 0.3;
+        // driver_inputs.m_throttle = 0.2;
         // driver_inputs.m_steering = 0.0;
         // driver_inputs.m_braking = 0.0;
 
@@ -523,6 +527,18 @@ int main(int argc, char* argv[]) {
 
         // Increment frame number
         step_number++;
+
+        // Calculate and update RTF at each step
+        auto current_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = current_time - overall_start;
+        double simulated_time = time; // Change in simulation time since last update
+        // previous_time = time; // Update previous_time for the next iteration
+
+        // To prevent division by zero if simulated_time is 0 (e.g., at the very start)
+        if(simulated_time > 0) {
+            double step_rtf = elapsed.count() / simulated_time;
+            std::cout << "Current RTF: " << step_rtf << std::endl;
+        }
     }
 
 
