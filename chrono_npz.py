@@ -5,16 +5,21 @@ import pandas as pd
 
 train_output = {}
 test_output = {}
-vel_mean = np.zeros((3), dtype=float)
-vel_std = np.zeros((3), dtype=float)
-acc_mean = 0
-acc_std = 0
-total_lines = 0
+vel_mean = np.zeros((3), dtype=np.float32)
+vel_std = np.zeros((3), dtype=np.float32)
+acc_mean = np.zeros((3), dtype=np.float32)
+acc_std = np.zeros((3), dtype=np.float32)
+cumulative_sum_vel = np.zeros((3), dtype=np.float32)
+cumulative_sum_acc = np.zeros((3), dtype=np.float32)
+cumulative_sumsq_vel = np.zeros((3), dtype=np.float32)
+cumulative_sumsq_acc = np.zeros((3), dtype=np.float32)
+cumulative_count = 0
 sims = 0
 nmax = 350
+dt = 1
 
-def convert(train_it, file_num, folder_input, output, iteration, train) -> None:
-    global total_lines, acc_mean, acc_std, sims
+def convert(train_it, file_num, folder_input, output, train) -> None:
+    global cumulative_count, sims
 
     try:
         if (train_it < 5):
@@ -29,50 +34,63 @@ def convert(train_it, file_num, folder_input, output, iteration, train) -> None:
         sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
         sph = sph_f.to_numpy(dtype=np.float32)
         sph_lines = sph.shape[0]
+        # temp_pos = np.empty((nmax, ))
         positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=np.float32)
 
         for i in range(nmax):
             sph_f = pd.read_csv(f"{folder_input}fluid{i}.csv", header="infer", delimiter=",")
             sph = sph_f.to_numpy(dtype=np.float32)
-
-            # Calculate mean and variance first
-            if (train and iteration == 0):
-                vel_mean[0] += np.sum(sph[3])
-                # This is intentional: y and z are swapped
-                vel_mean[2] += np.sum(sph[4])
-                vel_mean[1] += np.sum(sph[5])
-                acc_mean += np.sum(sph[7])
-                total_lines += sph.shape[0]
-                sph = sph[:, :3]
-                # Swap y and z for GNS
-                sph[:, [2, 1]] = sph[:, [1, 2]]
+            # Only need ground truth position
+            sph = sph[:, :3]
+            # Swap y, z is intentional 
+            sph[:, [2, 1]] = sph[:, [1, 2]]
+            
+            # Get all positions first
+            if (train):
                 if (train_it < 5):
                     positions[i, :, :] = np.concatenate((boundary, sph))
                 else:
                     positions[i, :, :] = sph
-            elif (train and iteration == 1):
-                vel_std[0] += np.sum(np.square(sph[3] - vel_mean[0]))
-                # This is intentional: y and z are swapped
-                vel_std[2] += np.sum(np.square(sph[4] - vel_mean[2]))
-                vel_std[1] += np.sum(np.square(sph[5] - vel_mean[1]))
-                acc_std += np.sum(np.square(sph[7] - acc_mean))
-                print(f"Finished calculating variance for {folder_input}")
 
-        if (train and iteration == 0):
-            bce_particle_num = np.full((bce_lines), 3, dtype=int)
-            sph_particle_num = np.full((sph_lines), 6, dtype=int)
-            particle_num = np.concatenate((bce_particle_num, sph_particle_num))
+        if (train):
+            velocity = positions[:, bce_lines:, :]
+            velocity[1:] = (positions[1:, bce_lines:, :] - positions[:-1, bce_lines:, :]) / dt
+            velocity[0] = 0
+            flat_velocity = np.reshape(velocity, (-1, 3))
+
+            acceleration = (velocity[1:] - velocity[:-1]) / dt
+            acceleration[0] = 0
+            flat_acceleration = np.reshape(acceleration, (-1, 3))
+
+            # Yongjin
+            cumulative_count += len(velocity)
+
+            cumulative_sum_vel += np.sum(flat_velocity, axis=0)
+            cumulative_sum_acc += np.sum(flat_acceleration, axis=0)
+
+            cumulative_sumsq_vel += np.sum(flat_velocity**2, axis=0)
+            cumulative_sumsq_acc += np.sum(flat_acceleration**2, axis=0)
+
+            vel_mean = cumulative_sum_vel / cumulative_count
+            acc_mean = cumulative_sum_acc / cumulative_count
+            vel_std = np.sqrt(
+                (cumulative_sumsq_vel/cumulative_count - (cumulative_sum_vel/cumulative_count)**2))
+            acc_std = np.sqrt(
+                (cumulative_sumsq_acc/cumulative_count - (cumulative_sum_acc/cumulative_count)**2))
             
-            output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
-            sims += 1
-            print(f"Finished {folder_input}")
+        bce_particle_num = np.full((bce_lines), 3, dtype=int)
+        sph_particle_num = np.full((sph_lines), 6, dtype=int)
+        particle_num = np.concatenate((bce_particle_num, sph_particle_num))
+        
+        output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
+        sims += 1
+        print(f"Finished {folder_input}")
     except:
         print(f"Error at {folder_input}. Ignoring this simulation trajectory and moving on.")
 
-start = int(sys.argv[1])
+train_split = int(sys.argv[1])
 folder = sys.argv[2]
 
-train_split = 197
 save_dir = f"/work/09874/tliangwi/ls6/{folder}/"
 dataset_dir = f"{save_dir}datasets/"
 Path(dataset_dir).mkdir(exist_ok=True)
@@ -81,28 +99,20 @@ Path(f"{save_dir}output").mkdir(exist_ok=True)
 
 DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
 
-for iteration in range(2):
-    for bs in range(start, train_split + 1):
-        for train_it in range(1, 5 + 1):
-            convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, iteration, True)
+for bs in range(1, train_split + 1):
+    for train_it in range(1, 5 + 1):
+        convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, True)
 
-    if (iteration == 0):
-        vel_mean /= (total_lines)
-        acc_mean /= (total_lines)
-    
-    for bs in range(train_split + 1, 200 + 1):
-        for train_it in range(1, 5 + 1):
-            convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, iteration, False)
-
-vel_std /= (total_lines)
-acc_std /= (total_lines)
+for bs in range(train_split + 1, 200 + 1):
+    for train_it in range(1, 5 + 1):
+        convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, False)
 
 print(f"VELOCITY MEAN: {vel_mean}")
 print(f"ACCELERATION MEAN: {acc_mean}")
 print(f"VELOCITY VARIANCE (Use sqrt): {vel_std}")
 print(f"ACCELERATION VARIANCE (Use sqrt): {acc_std}")
 print(f"TRAINING SIMULATIONS COMPLETED: {sims}")
-print(f"TOTAL LINES: {total_lines}")
+print(f"TOTAL LINES: {cumulative_count}")
 
 train_npz_output = f"{dataset_dir}train.npz"
 np.savez_compressed(train_npz_output, **train_output)
