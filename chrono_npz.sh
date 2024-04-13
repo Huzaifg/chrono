@@ -23,4 +23,4 @@ source "${PARENT}/gns/venv/bin/activate"
 pip install pandas
 
 cd $PARENT/chrono
-python -u chrono_npz.py 1 data_chrono
+python -u chrono_npz.py 197 sph_data

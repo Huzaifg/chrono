@@ -19,7 +19,7 @@ nmax = 350
 dt = 1
 
 def convert(train_it, file_num, folder_input, output, train) -> None:
-    global cumulative_count, sims
+    global cumulative_count, sims, vel_mean, vel_std, acc_mean, acc_std, cumulative_sum_vel, cumulative_sum_acc, cumulative_sumsq_acc, cumulative_sumsq_vel
 
     try:
         if (train_it < 5):
@@ -34,7 +34,6 @@ def convert(train_it, file_num, folder_input, output, train) -> None:
         sph_f = pd.read_csv(f"{folder_input}fluid0.csv", header="infer", delimiter=",")
         sph = sph_f.to_numpy(dtype=np.float32)
         sph_lines = sph.shape[0]
-        # temp_pos = np.empty((nmax, ))
         positions = np.empty((nmax, bce_lines + sph_lines, 3), dtype=np.float32)
 
         for i in range(nmax):
@@ -63,21 +62,19 @@ def convert(train_it, file_num, folder_input, output, train) -> None:
             flat_acceleration = np.reshape(acceleration, (-1, 3))
 
             # Yongjin
-            cumulative_count += len(velocity)
+            cumulative_count += len(flat_velocity)
 
             cumulative_sum_vel += np.sum(flat_velocity, axis=0)
             cumulative_sum_acc += np.sum(flat_acceleration, axis=0)
 
-            cumulative_sumsq_vel += np.sum(flat_velocity**2, axis=0)
-            cumulative_sumsq_acc += np.sum(flat_acceleration**2, axis=0)
+            cumulative_sumsq_vel += np.sum(np.square(flat_velocity), axis=0)
+            cumulative_sumsq_acc += np.sum(np.square(flat_acceleration), axis=0)
 
             vel_mean = cumulative_sum_vel / cumulative_count
             acc_mean = cumulative_sum_acc / cumulative_count
-            vel_std = np.sqrt(
-                (cumulative_sumsq_vel/cumulative_count - (cumulative_sum_vel/cumulative_count)**2))
-            acc_std = np.sqrt(
-                (cumulative_sumsq_acc/cumulative_count - (cumulative_sum_acc/cumulative_count)**2))
-            
+            vel_std = np.sqrt((cumulative_sumsq_vel / cumulative_count - np.square(cumulative_sum_vel / cumulative_count)))
+            acc_std = np.sqrt((cumulative_sumsq_acc / cumulative_count - np.square(cumulative_sum_acc / cumulative_count)))
+
         bce_particle_num = np.full((bce_lines), 3, dtype=int)
         sph_particle_num = np.full((sph_lines), 6, dtype=int)
         particle_num = np.concatenate((bce_particle_num, sph_particle_num))
@@ -90,6 +87,7 @@ def convert(train_it, file_num, folder_input, output, train) -> None:
 
 train_split = int(sys.argv[1])
 folder = sys.argv[2]
+DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
 
 save_dir = f"/work/09874/tliangwi/ls6/{folder}/"
 dataset_dir = f"{save_dir}datasets/"
@@ -97,7 +95,6 @@ Path(dataset_dir).mkdir(exist_ok=True)
 Path(f"{save_dir}models").mkdir(exist_ok=True)
 Path(f"{save_dir}output").mkdir(exist_ok=True)
 
-DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
 
 for bs in range(1, train_split + 1):
     for train_it in range(1, 5 + 1):
