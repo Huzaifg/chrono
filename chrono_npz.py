@@ -18,11 +18,11 @@ sims = 0
 nmax = 350
 dt = 1
 
-def convert(train_it, file_num, folder_input, output, train) -> None:
+def convert(group, file_num, folder_input, output, train) -> None:
     global cumulative_count, sims, vel_mean, vel_std, acc_mean, acc_std, cumulative_sum_vel, cumulative_sum_acc, cumulative_sumsq_acc, cumulative_sumsq_vel
 
     try:
-        if (train_it < 5):
+        if (group < 5):
             boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
             boundary = boundary.to_numpy(dtype=np.float32)
             boundary = boundary[:, :3]
@@ -45,14 +45,13 @@ def convert(train_it, file_num, folder_input, output, train) -> None:
             sph[:, [2, 1]] = sph[:, [1, 2]]
             
             # Get all positions first
-            if (train):
-                if (train_it < 5):
-                    positions[i, :, :] = np.concatenate((boundary, sph))
-                else:
-                    positions[i, :, :] = sph
+            if (group < 5):
+                positions[i, :, :] = np.concatenate((boundary, sph))
+            else:
+                positions[i, :, :] = sph
 
         if (train):
-            velocity = positions[:, bce_lines:, :]
+            velocity = positions[:, bce_lines:, :].copy()
             velocity[1:] = (positions[1:, bce_lines:, :] - positions[:-1, bce_lines:, :]) / dt
             velocity[0] = 0
             flat_velocity = np.reshape(velocity, (-1, 3))
@@ -78,8 +77,8 @@ def convert(train_it, file_num, folder_input, output, train) -> None:
         bce_particle_num = np.full((bce_lines), 3, dtype=int)
         sph_particle_num = np.full((sph_lines), 6, dtype=int)
         particle_num = np.concatenate((bce_particle_num, sph_particle_num))
-        
-        output[f"{train_it}_simulation_trajectory_{file_num}"] = (positions, particle_num)
+
+        output[f"{group}_simulation_trajectory_{file_num}"] = (positions, particle_num)
         sims += 1
         print(f"Finished {folder_input}")
     except:
@@ -91,18 +90,17 @@ DEMO_PARENT = "/work/09874/tliangwi/ls6/DEMO_OUTPUT/"
 
 save_dir = f"/work/09874/tliangwi/ls6/{folder}/"
 dataset_dir = f"{save_dir}datasets/"
-Path(dataset_dir).mkdir(exist_ok=True)
+Path(dataset_dir).mkdir(exist_ok=True, parents=True)
 Path(f"{save_dir}models").mkdir(exist_ok=True)
 Path(f"{save_dir}output").mkdir(exist_ok=True)
 
-
 for bs in range(1, train_split + 1):
-    for train_it in range(1, 5 + 1):
-        convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, True)
+    for group in range(1, 5 + 1):
+        convert(group, bs, f"{DEMO_PARENT}{group}_BAFFLE_FLOW_TRAIN_{bs}/particles/", train_output, True)
 
 for bs in range(train_split + 1, 200 + 1):
-    for train_it in range(1, 5 + 1):
-        convert(train_it, bs, f"{DEMO_PARENT}{train_it}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, False)
+    for group in range(1, 5 + 1):
+        convert(group, bs, f"{DEMO_PARENT}{group}_BAFFLE_FLOW_TRAIN_{bs}/particles/", test_output, False)
 
 print(f"VELOCITY MEAN: {vel_mean}")
 print(f"ACCELERATION MEAN: {acc_mean}")
