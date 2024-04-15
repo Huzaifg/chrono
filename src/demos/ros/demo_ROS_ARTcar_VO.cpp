@@ -44,6 +44,7 @@
 #include "chrono_ros/handlers/sensor/ChROSGyroscopeHandler.h"
 #include "chrono_ros/handlers/sensor/ChROSMagnetometerHandler.h"
 #include "chrono_ros/handlers/sensor/ChROSIMUHandler.h"
+#include "chrono_ros/handlers/ChROSTFHandler.h"
 
 #include "chrono_sensor/ChSensorManager.h"
 #include "chrono_sensor/sensors/ChCameraSensor.h"
@@ -82,7 +83,7 @@ float imu_collection_time = 0;
 // =============================================================================
 
 // Initial vehicle location and orientation
-ChVector3d initLoc(2.5, 0., 0.5);
+ChVector3d initLoc(-2.5, 2.5, 0.5);
 // ChQuaternion<> initRot(1, 0, 0, 0);
 
 
@@ -458,6 +459,10 @@ int main(int argc, char* argv[]) {
     imu_handler->SetMagnetometerHandler(mag_handler);
     ros_manager->RegisterHandler(imu_handler);
 
+    auto tf_handler = chrono_types::make_shared<ChROSTFHandler>(100);
+    tf_handler->AddTransform(room_mesh_body, car.GetChassisBody());
+    ros_manager->RegisterHandler(tf_handler);
+
     // initialize ros manager
     ros_manager->Initialize();
 
@@ -505,9 +510,9 @@ int main(int argc, char* argv[]) {
 
         // Get driver inputs
         DriverInputs driver_inputs = driver_vsg->GetInputs();
-        // driver_inputs.m_throttle = 0.2;
-        // driver_inputs.m_steering = 0.0;
-        // driver_inputs.m_braking = 0.0;
+        driver_inputs.m_throttle = 0.2;
+        driver_inputs.m_steering = 0.5;
+        driver_inputs.m_braking = 0.0;
 
         // Update modules (process inputs from other modules)
         driver_vsg->Synchronize(time);
