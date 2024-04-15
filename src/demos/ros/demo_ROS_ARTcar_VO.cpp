@@ -459,6 +459,10 @@ int main(int argc, char* argv[]) {
     imu_handler->SetMagnetometerHandler(mag_handler);
     ros_manager->RegisterHandler(imu_handler);
 
+    // Set name
+    car.GetChassisBody()->SetName("chassis");
+    room_mesh_body->SetName("world");
+
     auto tf_handler = chrono_types::make_shared<ChROSTFHandler>(100);
     tf_handler->AddTransform(room_mesh_body, car.GetChassisBody());
     ros_manager->RegisterHandler(tf_handler);
