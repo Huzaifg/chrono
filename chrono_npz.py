@@ -50,7 +50,13 @@ def convert(group, file_num, folder_input, output, train) -> None:
                 positions[i, :, :] = np.concatenate((boundary, sph))
             else:
                 positions[i, :, :] = sph
+                
+        bce_particle_num = np.full((bce_lines), 3, dtype=int)
+        sph_particle_num = np.full((sph_lines), 6, dtype=int)
+        particle_num = np.concatenate((bce_particle_num, sph_particle_num))
 
+        output[f"{group}_simulation_trajectory_{file_num}"] = (positions, particle_num)
+        
         if (train):
             velocity = positions[:, bce_lines:, :].copy()
             velocity[1:] = (positions[1:, bce_lines:, :] - positions[:-1, bce_lines:, :]) / dt
@@ -75,11 +81,6 @@ def convert(group, file_num, folder_input, output, train) -> None:
             vel_std = np.sqrt((cumulative_sumsq_vel / cumulative_count - np.square(cumulative_sum_vel / cumulative_count)))
             acc_std = np.sqrt((cumulative_sumsq_acc / cumulative_count - np.square(cumulative_sum_acc / cumulative_count)))
 
-        bce_particle_num = np.full((bce_lines), 3, dtype=int)
-        sph_particle_num = np.full((sph_lines), 6, dtype=int)
-        particle_num = np.concatenate((bce_particle_num, sph_particle_num))
-
-        output[f"{group}_simulation_trajectory_{file_num}"] = (positions, particle_num)
         sims += 1
         print(f"Finished {folder_input}")
     except:
