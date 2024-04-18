@@ -32,6 +32,6 @@ source "venv/bin/activate"
 #pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu118.html
 #pip install --upgrade -r requirements.txt
 
-SET_PATH="${PARENT}data_chrono/"
+SET_PATH="${PARENT}sph_data/"
 
-python -u -m gns.train --data_path="${SET_PATH}datasets/" --model_path="${SET_PATH}models/" --con_radius=0.025 --ntraining_steps=2000000
+python -u -m gns.train --data_path="${SET_PATH}datasets/" --model_path="${SET_PATH}models_0.0125/" --con_radius=0.0125 --ntraining_steps=2000000

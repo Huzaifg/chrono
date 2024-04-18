@@ -26,6 +26,7 @@ def convert(group, file_num, folder_input, output, train) -> None:
             boundary = pd.read_csv(f"{folder_input}BCE_Rigid0.csv", header="infer", delimiter=",")
             boundary = boundary.to_numpy(dtype=np.float32)
             boundary = boundary[:, :3]
+            boundary[:, [2, 1]] = boundary[:, [1, 2]]
             bce_lines = boundary.shape[0]
         else:
             bce_lines = 0
