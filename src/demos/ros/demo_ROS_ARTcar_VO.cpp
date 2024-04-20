@@ -276,7 +276,7 @@ int main(int argc, char* argv[]) {
     // Exposure (in seconds) of each image
     float exposure_time = 0.02f;
 
-    int alias_factor = 2;
+    int alias_factor = 3;
 
     bool use_gi = true;  // whether cameras should use global illumination
 
@@ -359,8 +359,8 @@ int main(int argc, char* argv[]) {
 
 
     // add an accelerometer, gyroscope, and magnetometer
-    // chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
-    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleY( CH_PI));
+    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
+    // chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleY( CH_PI));
 
     ChVector3d gps_reference(-89.400, 43.070, 260.0);
     auto acc = chrono_types::make_shared<ChAccelerometerSensor>(car.GetChassisBody(),    // body to which the IMU is attached
@@ -514,9 +514,17 @@ int main(int argc, char* argv[]) {
 
         // Get driver inputs
         DriverInputs driver_inputs = driver_vsg->GetInputs();
-        driver_inputs.m_throttle = 0.2;
-        driver_inputs.m_steering = 0.5;
-        driver_inputs.m_braking = 0.0;
+        if(time < 5){
+            driver_inputs.m_throttle = 0.0;
+            driver_inputs.m_steering = 0.0;
+            driver_inputs.m_braking = 0.0;
+
+        }
+        else{
+            driver_inputs.m_throttle = 0.5;
+            driver_inputs.m_steering = 0.5;
+            driver_inputs.m_braking = 0.0;
+        }
 
         // Update modules (process inputs from other modules)
         driver_vsg->Synchronize(time);
