@@ -359,8 +359,8 @@ int main(int argc, char* argv[]) {
 
 
     // add an accelerometer, gyroscope, and magnetometer
-    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
-    // chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleY( CH_PI));
+    // chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleAxis(0, {1, 0, 0}));
+    chrono::ChFrame<double> imu_offset_pose({0.0, 0.0, 0.0}, QuatFromAngleY( CH_PI));
 
     ChVector3d gps_reference(-89.400, 43.070, 260.0);
     auto acc = chrono_types::make_shared<ChAccelerometerSensor>(car.GetChassisBody(),    // body to which the IMU is attached
@@ -428,10 +428,10 @@ int main(int argc, char* argv[]) {
     auto camera_topic_name_r = "~/right_camera";
     auto camera_topic_name_l = "~/left_camera";
     // adding right camera
-    auto camera_handler_r = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam2, camera_topic_name_r);
+    auto camera_handler_r = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam1, camera_topic_name_r);
     ros_manager->RegisterHandler(camera_handler_r);
     // adding left camera
-    auto camera_handler_l = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam1, camera_topic_name_l);
+    auto camera_handler_l = chrono_types::make_shared<ChROSCameraHandler>(camera_rate, cam2, camera_topic_name_l);
     ros_manager->RegisterHandler(camera_handler_l);
 
     // imu manager
