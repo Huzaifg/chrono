@@ -73,6 +73,11 @@ void ChROSIMUHandler::Tick(double time) {
     if (m_gyro_handler) {
         m_imu_msg.angular_velocity = m_gyro_handler->m_imu_msg.angular_velocity;
         m_imu_msg.angular_velocity_covariance = m_gyro_handler->m_imu_msg.angular_velocity_covariance;
+        auto orientation = m_gyro_handler->m_imu->GetParent()->GetRot();
+        m_imu_msg.orientation.x = orientation.e1();
+        m_imu_msg.orientation.y = orientation.e2();
+        m_imu_msg.orientation.z = orientation.e3();
+        m_imu_msg.orientation.w = orientation.e0();
     }
     if (m_mag_handler) {
         // Convert the magnetic field to orientation

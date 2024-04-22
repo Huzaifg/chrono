@@ -83,7 +83,7 @@ float imu_collection_time = 0;
 // =============================================================================
 
 // Initial vehicle location and orientation
-ChVector3d initLoc(-2.5, 2.5, 0.5);
+ChVector3d initLoc(-2.5, 1.5, 0.5);
 // ChQuaternion<> initRot(1, 0, 0, 0);
 
 
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
     car.SetChassisCollisionType(chassis_collision_type);
     car.SetChassisFixed(false);
     ChQuaternion<> initRot;
-    initRot.SetFromAngleAxis(CH_PI, ChVector3i(0, 0, 1));
+    initRot.SetFromAngleAxis(1.5 * CH_PI, ChVector3i(0, 0, 1));
     car.SetInitPosition(ChCoordsys<>(initLoc, initRot));
     car.SetTireType(tire_model);
     car.SetTireStepSize(tire_step_size);
@@ -514,17 +514,17 @@ int main(int argc, char* argv[]) {
 
         // Get driver inputs
         DriverInputs driver_inputs = driver_vsg->GetInputs();
-        if(time < 5){
-            driver_inputs.m_throttle = 0.0;
-            driver_inputs.m_steering = 0.0;
-            driver_inputs.m_braking = 0.0;
+        // if(time < 5){
+        //     driver_inputs.m_throttle = 0.0;
+        //     driver_inputs.m_steering = 0.0;
+        //     driver_inputs.m_braking = 0.0;
 
-        }
-        else{
-            driver_inputs.m_throttle = 0.5;
-            driver_inputs.m_steering = 0.5;
-            driver_inputs.m_braking = 0.0;
-        }
+        // }
+        // else{
+        //     driver_inputs.m_throttle = 0.3;
+        //     driver_inputs.m_steering = 0.5;
+        //     driver_inputs.m_braking = 0.0;
+        // }
 
         // Update modules (process inputs from other modules)
         driver_vsg->Synchronize(time);
