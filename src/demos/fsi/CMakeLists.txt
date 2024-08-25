@@ -15,13 +15,19 @@ set(DEMOS ${DEMOS}
    demo_FSI_EmbeddedObstacle
    demo_FSI_BaffleFlow
    demo_FSI_CouetteFlow
-)
+   demo_FSI_BaffleFlowTest
+   demo_FSI_DamBreakTest
+   demo_FSI_WaveTankTest
+   demo_FSI_SphereBounceTest
+   )
 
 if(ENABLE_MODULE_PARDISO_MKL)
    set(DEMOS ${DEMOS}
       demo_FSI_Flexible_Flat_Plate
       demo_FSI_Flexible_Cable
       demo_FSI_Flexible_Toroidal_Tire
+      demo_FSI_Flexible_CableTest
+      demo_FSI_Flexible_Flat_PlateTest
    )
 endif()
 

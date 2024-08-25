@@ -1,0 +1,1 @@
+zsh runBaffle.sh  && zsh runWaveTank.sh && zsh runSphereBounce.sh && zsh runCable.sh && zsh runPlate.sh
