@@ -19,6 +19,7 @@ set(DEMOS ${DEMOS}
    demo_FSI_DamBreakTest
    demo_FSI_WaveTankTest
    demo_FSI_SphereBounceTest
+   demo_FSI_SingleWheel_Rassor
    )
 
 if(ENABLE_MODULE_PARDISO_MKL)
