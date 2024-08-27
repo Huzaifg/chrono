@@ -313,7 +313,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Done reading json file" << std::endl;
 
     sysFSI.SetNumProximitySearchSteps(ps_freq);
-    sysFSI.SetSharedProximitySearch(bool(shared));
+    sysFSI.SetSharedProximitySearch(false);
 
     double gravity_G = sysFSI.GetGravitationalAcceleration().z();
     ChVector3d gravity = ChVector3d(gravity_G * sin(slope_angle), 0, gravity_G * cos(slope_angle));
