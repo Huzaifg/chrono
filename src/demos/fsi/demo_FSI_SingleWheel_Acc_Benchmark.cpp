@@ -68,7 +68,7 @@ double grouser_wide = 0.005;
 int grouser_num = 24;
 std::string wheel_obj = "robot/viper/obj/viper_wheel_right_dem.obj";
 
-double total_time = 1.0;
+double total_time = 10.0;
 
 // linear actuator and angular actuator
 auto actuator = chrono_types::make_shared<ChLinkLockLinActuator>();
