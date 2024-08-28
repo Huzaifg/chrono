@@ -118,8 +118,8 @@ class CH_FSI_API ChSystemFsi {
         bool consistent_gradient_discretization;   ///< use G matrix in SPH gradient approximation (default: false)
         bool consistent_laplacian_discretization;  ///< use L matrix in SPH Laplacian approximation (default: false)
         double kernel_threshold;                   ///< threshold for identifying free surface (CRM only, default: 0.8)
-        int numProximitySearchSteps; ///< Number of time-steps after which proximity search is performed (default: 4)
-        bool sharedProximitySearch; ///< use shared memory for proximity search (default: false)
+        int numProximitySearchSteps;  ///< Number of time-steps after which proximity search is performed (default: 4)
+        bool sharedProximitySearch;   ///< use shared memory for proximity search (default: false)
         SPHParameters();
     };
 
@@ -425,6 +425,28 @@ class CH_FSI_API ChSystemFsi {
                           bool solid,
                           bool capped = true,
                           bool polar = true);
+
+    // Wei functions to make custom BCEs for a wheel
+    void CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
+                                    Real wheel_rad,
+                                    Real wheel_w,
+                                    Real gro_h,
+                                    Real gro_w,
+                                    int gro_num,
+                                    std::shared_ptr<SimParams> paramsH,
+                                    Real kernel_h,
+                                    bool cartesian);
+
+    // Wei functions to make custom BCEs for a wheel
+    void AddWheelBCE_Grouser(std::shared_ptr<ChBody> body,
+                             const ChFrame<>& frame,
+                             double radius,
+                             double wide,
+                             double grouser_height,
+                             double grouser_wide,
+                             int grouser_num,
+                             double kernel_h,
+                             bool cartesian);
 
     /// Add BCE markers for a cylindrical annulus of specified radii and height and associate them with the given body.
     /// The cylindrical annulus is assumed centered at the origin of the provided frame and aligned with its Z axis.
