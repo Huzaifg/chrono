@@ -91,8 +91,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared);
+                     int& ps_freq);
 
 // -----------------------------------------------------------------------------
 
@@ -113,12 +112,11 @@ int main(int argc, char* argv[]) {
     double step_size = 1e-4;
     bool verbose = true;
     int ps_freq = 1;
-    int shared = 0;
-    if (!GetProblemSpecs(argc, argv, verbose, output, output_fps, render, render_fps, snapshots, ps_freq, shared)) {
+    if (!GetProblemSpecs(argc, argv, verbose, output, output_fps, render, render_fps, snapshots, ps_freq)) {
         return 1;
     }
     std::cout << "verbose: " << verbose << std::endl;
-    out_dir = out_dir + std::to_string(ps_freq) + "_" + std::to_string(shared) + "/";
+    out_dir = out_dir + std::to_string(ps_freq) + "/";
 
     // Create the Chrono system and associated collision system
     ChSystemNSC sysMBS;
@@ -154,7 +152,6 @@ int main(int argc, char* argv[]) {
     sph_params.consistent_gradient_discretization = false;
     sph_params.consistent_laplacian_discretization = false;
     sph_params.numProximitySearchSteps = ps_freq;
-    sph_params.sharedProximitySearch = bool(shared);
 
     sysFSI.SetSPHParameters(sph_params);
     sysFSI.SetStepSize(step_size);
@@ -199,7 +196,7 @@ int main(int argc, char* argv[]) {
 
     fsi.Initialize();
 
-    if(output){
+    if (output) {
         // Create oputput directories
         if (!filesystem::create_directory(filesystem::path(out_dir))) {
             cerr << "Error creating directory " << out_dir << endl;
@@ -227,7 +224,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-
 
     ////fsi.SaveInitialMarkers(out_dir);
 
@@ -291,7 +287,7 @@ int main(int argc, char* argv[]) {
 
     std::string out_file = out_dir + "/results.txt";
     std::ofstream ofile;
-    if(output)
+    if (output)
         ofile.open(out_file, std::ios::trunc);
 
     ChTimer timer;
@@ -347,7 +343,6 @@ int main(int argc, char* argv[]) {
     // gplot.Plot(height_recorder, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
 #endif
 
-
     return 0;
 }
 
@@ -359,8 +354,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared) {
+                     int& ps_freq) {
     ChCLI cli(argv[0], "Flexible plate FSI demo");
 
     cli.AddOption<bool>("Output", "quiet", "Disable verbose terminal output");
@@ -373,9 +367,6 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<bool>("Visualization", "snapshots", "Enable writing snapshot image files");
 
     cli.AddOption<int>("Proximity Search", "ps_freq", "Frequency of Proximity Search", std::to_string(ps_freq));
-    cli.AddOption<int>("Proximity Search", "shared_ps", "Enable shared memory for proximity search",
-                       std::to_string(shared));
-
     if (!cli.Parse(argc, argv)) {
         cli.Help();
         return false;
@@ -390,7 +381,6 @@ bool GetProblemSpecs(int argc,
     render_fps = cli.GetAsType<double>("render_fps");
 
     ps_freq = cli.GetAsType<int>("ps_freq");
-    shared = cli.GetAsType<int>("shared_ps");
 
     return true;
 }

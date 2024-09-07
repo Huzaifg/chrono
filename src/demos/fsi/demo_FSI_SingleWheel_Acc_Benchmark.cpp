@@ -389,7 +389,6 @@ int main(int argc, char* argv[]) {
 
     sysFSI.ReadParametersFromFile(GetChronoDataFile("fsi/input_json/demo_FSI_SingleWheelTest_Granular.json"));
     sysFSI.SetNumProximitySearchSteps(neighbor_search);
-    sysFSI.SetSharedProximitySearch(false);
     sysFSI.SetActiveDomainDelay(1.0);
 
     double gravity_G = -grav_mag;

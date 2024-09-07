@@ -108,8 +108,7 @@ bool GetProblemSpecs(int argc,
                      double& out_fps,
                      bool& render,
                      double& render_fps,
-                     int& ps_freq,
-                     int& shared);
+                     int& ps_freq);
 
 //------------------------------------------------------------------
 // Create the objects of the MBD system. Rigid bodies, and if FSI,
@@ -265,9 +264,8 @@ int main(int argc, char* argv[]) {
     bool verbose = true;
     double t_end = 20;
     int ps_freq = 1;
-    int shared = 0;
 
-    if (!GetProblemSpecs(argc, argv, InputJSON, t_end, verbose, output, out_fps, render, render_fps, ps_freq, shared)) {
+    if (!GetProblemSpecs(argc, argv, InputJSON, t_end, verbose, output, out_fps, render, render_fps, ps_freq)) {
         return 1;
     }
 
@@ -283,7 +281,7 @@ int main(int argc, char* argv[]) {
 
     // total_mass = 17.5;
     slope_angle = 0;
-    out_dir = "single_drum_tests/" + std::to_string(ps_freq) + "_" + std::to_string(shared) + "/";
+    out_dir = "single_drum_tests/" + std::to_string(ps_freq) + "/";
     // wheelfilename = "C:/Users/fang/source/nasa_singlewheel/wheel_obj/withGrousers.obj";
 
     std::cout << "total_mass: " << total_mass << "\n";
@@ -313,7 +311,6 @@ int main(int argc, char* argv[]) {
     std::cout << "Done reading json file" << std::endl;
 
     sysFSI.SetNumProximitySearchSteps(ps_freq);
-    sysFSI.SetSharedProximitySearch(false);
 
     double gravity_G = sysFSI.GetGravitationalAcceleration().z();
     ChVector3d gravity = ChVector3d(gravity_G * sin(slope_angle), 0, gravity_G * cos(slope_angle));
@@ -496,8 +493,7 @@ bool GetProblemSpecs(int argc,
                      double& out_fps,
                      bool& render,
                      double& render_fps,
-                     int& ps_freq,
-                     int& shared) {
+                     int& ps_freq) {
     ChCLI cli(argv[0], "Single Wheel Rassor FSI demo");
 
     cli.AddOption<std::string>("Input", "InputJSON", "Problem specification file [JSON format]", InputJSON);
@@ -512,8 +508,6 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<double>("Visualization", "render_fps", "Render frequency [fps]", std::to_string(render_fps));
 
     cli.AddOption<int>("Proximity Search", "ps_freq", "Frequency of Proximity Search", std::to_string(ps_freq));
-    cli.AddOption<int>("Proximity Search", "shared_ps", "Enable shared memory for proximity search",
-                       std::to_string(shared));
 
     if (!cli.Parse(argc, argv)) {
         cli.Help();
@@ -531,7 +525,6 @@ bool GetProblemSpecs(int argc,
     render_fps = cli.GetAsType<double>("render_fps");
 
     ps_freq = cli.GetAsType<int>("ps_freq");
-    shared = cli.GetAsType<int>("shared_ps");
 
     return true;
 }

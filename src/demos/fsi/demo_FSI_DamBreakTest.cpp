@@ -78,8 +78,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared);
+                     int& ps_freq);
 
 //------------------------------------------------------------------
 // Create the objects of the MBD system. Rigid bodies, and if FSI,
@@ -102,16 +101,13 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
 // =============================================================================
 
 int main(int argc, char* argv[]) {
-
-
     // Use the default input file or you may enter your input parameters as a command line argument
     std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_DamBreak_Explicit.json");
     bool verbose = true;
     bool snapshots = true;
     int ps_freq = 1;
-    int shared = 0;
     if (!GetProblemSpecs(argc, argv, inputJson, t_end, verbose, output, output_fps, render, render_fps, snapshots,
-                         ps_freq, shared)) {
+                         ps_freq)) {
         return 1;
     }
 
@@ -119,10 +115,9 @@ int main(int argc, char* argv[]) {
     ChSystemSMC sysMBS;
     ChSystemFsi sysFSI(&sysMBS);
 
-
     sysFSI.ReadParametersFromFile(inputJson);
 
-    out_dir = out_dir + std::to_string(ps_freq) + "_" + std::to_string(shared) + "/";
+    out_dir = out_dir + std::to_string(ps_freq) + "/";
 
     // Set up the periodic boundary condition (only in Y direction)
     auto initSpace0 = sysFSI.GetInitialSpacing();
@@ -152,15 +147,12 @@ int main(int argc, char* argv[]) {
     CreateSolidPhase(sysMBS, sysFSI);
 
     sysFSI.SetNumProximitySearchSteps(ps_freq);
-    sysFSI.SetSharedProximitySearch(bool(shared));
 
     // Complete construction of the FSI system
     sysFSI.Initialize();
 
     std::cout << "Neighbor search steps: " << sysFSI.GetNumProximitySearchSteps() << std::endl;
-    std::cout << "Shared memory?" << sysFSI.GetSharedProximitySearch() << std::endl;
-    
-    if(output){
+    if (output) {
         // Create oputput directories
         if (!filesystem::create_directory(filesystem::path(out_dir))) {
             std::cerr << "Error creating directory " << out_dir << std::endl;
@@ -181,7 +173,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-
 
     // Create a run-tme visualizer
 #ifndef CHRONO_OPENGL
@@ -277,8 +268,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                    int& ps_freq,
-                     int& shared) {
+                     int& ps_freq) {
     ChCLI cli(argv[0], "Flexible plate FSI demo");
 
     cli.AddOption<std::string>("Input", "inputJSON", "Problem specification file [JSON format]", inputJSON);
@@ -294,8 +284,7 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<bool>("Visualization", "snapshots", "Enable writing snapshot image files");
 
     cli.AddOption<int>("Proximity Search", "ps_freq", "Frequency of Proximity Search", std::to_string(ps_freq));
-    cli.AddOption<int>("Proximity Search", "shared_ps", "Enable shared memory for proximity search", std::to_string(shared));
-    
+
     if (!cli.Parse(argc, argv)) {
         cli.Help();
         return false;
@@ -313,7 +302,6 @@ bool GetProblemSpecs(int argc,
     render_fps = cli.GetAsType<double>("render_fps");
 
     ps_freq = cli.GetAsType<int>("ps_freq");
-    shared = cli.GetAsType<int>("shared_ps");
 
     return true;
 }

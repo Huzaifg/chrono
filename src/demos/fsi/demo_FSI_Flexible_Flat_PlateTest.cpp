@@ -43,8 +43,6 @@
     #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
 #endif
 
-
-
 #include "chrono_thirdparty/cxxopts/ChCLI.h"
 #include "chrono_thirdparty/filesystem/path.h"
 
@@ -86,8 +84,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared);
+                     int& ps_freq);
 
 // -----------------------------------------------------------------------------
 
@@ -102,13 +99,12 @@ int main(int argc, char* argv[]) {
     double render_fps = 400;
     bool snapshots = false;
     int ps_freq = 1;
-    int shared = 0;
     if (!GetProblemSpecs(argc, argv, inputJSON, t_end, verbose, output, output_fps, render, render_fps, snapshots,
-                         ps_freq, shared)) {
+                         ps_freq)) {
         return 1;
     }
 
-    out_dir = out_dir + std::to_string(ps_freq) + "_" + std::to_string(shared) + "/";
+    out_dir = out_dir + std::to_string(ps_freq) + "/";
 
     // Create a physics system and an FSI system
     ChSystemSMC sysMBS;
@@ -144,15 +140,13 @@ int main(int argc, char* argv[]) {
     auto mesh = Create_MB_FE(sysMBS, sysFSI, verbose);
 
     sysFSI.SetNumProximitySearchSteps(ps_freq);
-    sysFSI.SetSharedProximitySearch(bool(shared));
 
     // Initialize FSI system
     sysFSI.Initialize();
 
     std::cout << "Neighbor search steps: " << sysFSI.GetNumProximitySearchSteps() << std::endl;
-    std::cout << "Shared memory?" << sysFSI.GetSharedProximitySearch() << std::endl;
 
-    if(output){
+    if (output) {
         // Create oputput directories
         if (!filesystem::create_directory(filesystem::path(out_dir))) {
             cerr << "Error creating directory " << out_dir << endl;
@@ -180,7 +174,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-
 
     // Create a run-tme visualizer
 #ifndef CHRONO_OPENGL
@@ -248,10 +241,10 @@ int main(int argc, char* argv[]) {
     int out_frame = 0;
     int render_frame = 0;
 
-    // Initial position of top node at the (approx) middle of the plate in x and y 
+    // Initial position of top node at the (approx) middle of the plate in x and y
     auto node = std::dynamic_pointer_cast<ChNodeFEAxyzD>(mesh->GetNode(15));
-    std::cout << "Initial position of node: " << node->GetPos().x() << " " << node->GetPos().y() << " " << node->GetPos().z()
-              << std::endl;
+    std::cout << "Initial position of node: " << node->GetPos().x() << " " << node->GetPos().y() << " "
+              << node->GetPos().z() << std::endl;
     ChVector3d init_pos = node->GetPos();
 
     std::string out_file = out_dir + "/results.txt";
@@ -267,7 +260,7 @@ int main(int argc, char* argv[]) {
     timer.start();
     while (time < t_end) {
         // if (verbose)
-            // cout << sim_frame << " time: " << time << endl;
+        // cout << sim_frame << " time: " << time << endl;
 
         ChVector3d pos = node->GetPos();
         ofile << time << "\t" << pos.x() << "\t" << pos.y() << "\t" << pos.z() << "\n";
@@ -299,8 +292,6 @@ int main(int argc, char* argv[]) {
                          << ".bmp";
                 visFSI->GetVisualSystem()->WriteImageToFile(filename.str());
             }
-
-
 
             render_frame++;
         }
@@ -425,7 +416,7 @@ std::shared_ptr<fea::ChMesh> Create_MB_FE(ChSystemSMC& sysMBS, ChSystemFsi& sysF
     sysMBS.Add(mesh);
 
     // Add the mesh to the FSI system (only these meshes interact with the fluid)
-    sysFSI.AddFsiMesh2D(mesh, BcePatternMesh2D::CENTERED, false);
+    sysFSI.AddFsiMesh(mesh);
 
     return mesh;
 }
@@ -441,8 +432,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared) {
+                     int& ps_freq) {
     ChCLI cli(argv[0], "Flexible plate FSI demo");
 
     cli.AddOption<std::string>("Input", "inputJSON", "Problem specification file [JSON format]", inputJSON);
@@ -458,8 +448,6 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<bool>("Visualization", "snapshots", "Enable writing snapshot image files");
 
     cli.AddOption<int>("Proximity Search", "ps_freq", "Frequency of Proximity Search", std::to_string(ps_freq));
-    cli.AddOption<int>("Proximity Search", "shared_ps", "Enable shared memory for proximity search",
-                       std::to_string(shared));
 
     if (!cli.Parse(argc, argv)) {
         cli.Help();
@@ -478,7 +466,6 @@ bool GetProblemSpecs(int argc,
     render_fps = cli.GetAsType<double>("render_fps");
 
     ps_freq = cli.GetAsType<int>("ps_freq");
-    shared = cli.GetAsType<int>("shared_ps");
 
     return true;
 }

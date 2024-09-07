@@ -43,8 +43,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-
-
 // -----------------------------------------------------------------
 
 // Run-time visualization system (VSG, OpenGL, or NONE)
@@ -96,8 +94,7 @@ bool GetProblemSpecs(int argc,
                      double& render_fps,
                      bool& snapshots,
                      int& size_factor,
-                     int& ps_freq,
-                     int& shared);
+                     int& ps_freq);
 
 // ----------------------------------------------------------------------------
 // Callback for setting initial SPH particle properties
@@ -172,10 +169,9 @@ int main(int argc, char* argv[]) {
     double step_size = 1e-4;
     bool verbose = true;
     int ps_freq = 1;
-    int shared = 0;
     int size_factor = 1;
     if (!GetProblemSpecs(argc, argv, verbose, output, output_fps, render, render_fps, snapshots, size_factor,
-                         ps_freq, shared)) {
+                         ps_freq)) {
         return 1;
     }
 
@@ -186,7 +182,7 @@ int main(int argc, char* argv[]) {
     bloc3 = bloc3 * size_factor;
     fsize = fsize * size_factor;
 
-    out_dir = out_dir + std::to_string(ps_freq) + "_" + std::to_string(shared) + "/";
+    out_dir = out_dir + std::to_string(ps_freq) + "/";
 
     // Create the Chrono system and associated collision system
     ChSystemSMC sysMBS;
@@ -229,7 +225,6 @@ int main(int argc, char* argv[]) {
     sph_params.shifting_coefficient = 1.0;
     sph_params.kernel_threshold = 0.8;
     sph_params.numProximitySearchSteps = ps_freq;
-    sph_params.sharedProximitySearch = bool(shared);
 
     sysFSI.SetSPHParameters(sph_params);
 
@@ -265,9 +260,8 @@ int main(int argc, char* argv[]) {
     fsi.Initialize();
 
     std::cout << "Neighbor search steps: " << sysFSI.GetNumProximitySearchSteps() << std::endl;
-    std::cout << "Shared memory?" << sysFSI.GetSharedProximitySearch() << std::endl;
-    
-    if(output){
+
+    if (output) {
         // Create output directories
         if (!filesystem::create_directory(filesystem::path(out_dir))) {
             std::cerr << "Error creating directory " << out_dir << std::endl;
@@ -290,7 +284,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-
 
     // Create a run-time visualizer
 #ifndef CHRONO_OPENGL
@@ -394,11 +387,8 @@ bool GetProblemSpecs(int argc,
                      double& render_fps,
                      bool& snapshots,
                      int& size_factor,
-                     int& ps_freq,
-                     int& shared)
-{
+                     int& ps_freq) {
     ChCLI cli(argv[0], "Flexible plate FSI demo");
-
 
     cli.AddOption<bool>("Output", "quiet", "Disable verbose terminal output");
 
@@ -411,10 +401,7 @@ bool GetProblemSpecs(int argc,
 
     cli.AddOption<int>("Domain Size", "size_factor", "Factor to multiply to domain", std::to_string(size_factor));
 
-
     cli.AddOption<int>("Proximity Search", "ps_freq", "Frequency of Proximity Search", std::to_string(ps_freq));
-    cli.AddOption<int>("Proximity Search", "shared_ps", "Enable shared memory for proximity search",
-                       std::to_string(shared));
 
     if (!cli.Parse(argc, argv)) {
         cli.Help();
@@ -431,7 +418,6 @@ bool GetProblemSpecs(int argc,
 
     size_factor = cli.GetAsType<int>("size_factor");
     ps_freq = cli.GetAsType<int>("ps_freq");
-    shared = cli.GetAsType<int>("shared_ps");
 
     return true;
 }

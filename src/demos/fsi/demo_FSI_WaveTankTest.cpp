@@ -85,8 +85,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared);
+                     int& ps_freq);
 
 // -----------------------------------------------------------------------------
 
@@ -130,13 +129,11 @@ int main(int argc, char* argv[]) {
     double step_size = 1e-4;
     bool verbose = true;
     int ps_freq = 1;
-    int shared = 0;
-    if (!GetProblemSpecs(argc, argv, verbose, output, output_fps, render, render_fps, snapshots, ps_freq,
-                         shared)) {
+    if (!GetProblemSpecs(argc, argv, verbose, output, output_fps, render, render_fps, snapshots, ps_freq)) {
         return 1;
     }
 
-    out_dir = out_dir + std::to_string(ps_freq) + "_" + std::to_string(shared) + "/";
+    out_dir = out_dir + std::to_string(ps_freq) + "/";
     // Create the Chrono system and associated collision system
     ChSystemNSC sysMBS;
     sysMBS.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
@@ -169,7 +166,6 @@ int main(int argc, char* argv[]) {
     sph_params.consistent_gradient_discretization = false;
     sph_params.consistent_laplacian_discretization = false;
     sph_params.numProximitySearchSteps = ps_freq;
-    sph_params.sharedProximitySearch = bool(shared);
 
     sysFSI.SetSPHParameters(sph_params);
     sysFSI.SetStepSize(step_size);
@@ -187,12 +183,11 @@ int main(int argc, char* argv[]) {
 
     // Create a piston wavemaker mechanism
     auto fun = chrono_types::make_shared<WaveFunction>(0.05, 0.2, 1);
-    auto piston_body = fsi.AddWaveMaker(csize, ChVector3d(0, 0, 0), fun);
+    auto piston_body = fsi.AddWaveMaker(ChFsiProblem::WavemakerType::PISTON, csize, ChVector3d(0, 0, 0), fun);
 
     fsi.Initialize();
 
-
-    if(output){
+    if (output) {
         // Create oputput directories
         if (!filesystem::create_directory(filesystem::path(out_dir))) {
             cerr << "Error creating directory " << out_dir << endl;
@@ -220,7 +215,6 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-
 
     ////postprocess::ChGnuPlot gplot(out_dir + "/wave_fun.gpl");
     ////gplot.SetGrid();
@@ -283,7 +277,7 @@ int main(int argc, char* argv[]) {
     // Write results to a txt file
     std::string out_file = out_dir + "/results.txt";
     std::ofstream ofile;
-    if(output)
+    if (output)
         ofile.open(out_file, std::ios::trunc);
 
     // Start the simulation
@@ -356,8 +350,7 @@ bool GetProblemSpecs(int argc,
                      bool& render,
                      double& render_fps,
                      bool& snapshots,
-                     int& ps_freq,
-                     int& shared) {
+                     int& ps_freq) {
     ChCLI cli(argv[0], "Flexible plate FSI demo");
 
     cli.AddOption<bool>("Output", "quiet", "Disable verbose terminal output");
@@ -369,10 +362,7 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<double>("Visualization", "render_fps", "Render frequency [fps]", std::to_string(render_fps));
     cli.AddOption<bool>("Visualization", "snapshots", "Enable writing snapshot image files");
 
-
     cli.AddOption<int>("Proximity Search", "ps_freq", "Frequency of Proximity Search", std::to_string(ps_freq));
-    cli.AddOption<int>("Proximity Search", "shared_ps", "Enable shared memory for proximity search",
-                       std::to_string(shared));
 
     if (!cli.Parse(argc, argv)) {
         cli.Help();
@@ -388,7 +378,5 @@ bool GetProblemSpecs(int argc,
     render_fps = cli.GetAsType<double>("render_fps");
 
     ps_freq = cli.GetAsType<int>("ps_freq");
-    shared = cli.GetAsType<int>("shared_ps");
-
     return true;
 }
