@@ -352,7 +352,7 @@ int main(int argc, char* argv[]) {
     CreateSolidPhase(sysMBS, sysFSI);
 
     // Set simulation data output length
-    sysFSI.SetOutputLength(0);
+    sysFSI.SetOutputLength(1);
 
     // Construction of the FSI system must be finalized before running
     sysFSI.Initialize();
