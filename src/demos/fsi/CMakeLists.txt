@@ -15,7 +15,9 @@ set(DEMOS ${DEMOS}
    demo_FSI_EmbeddedObstacle
    demo_FSI_BaffleFlow
    demo_FSI_CouetteFlow
-)
+   demo_FSI_SingleWheel_Acc_Benchmark
+   demo_FSI_SingleWheel_Rassor 
+   )
 
 if(ENABLE_MODULE_PARDISO_MKL)
    set(DEMOS ${DEMOS}

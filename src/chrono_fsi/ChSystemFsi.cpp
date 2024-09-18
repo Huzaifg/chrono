@@ -1169,8 +1169,8 @@ void ChSystemFsi::AddSPHParticle(const ChVector3d& pos,
                                  const ChVector3d& vel,
                                  const ChVector3d& tauXxYyZz,
                                  const ChVector3d& tauXyXzYz) {
-    m_sysFSI->AddSphParticle(utils::ToReal3(pos), rho, pres, mu, utils::ToReal3(vel),
-                             utils::ToReal3(tauXxYyZz), utils::ToReal3(tauXyXzYz));
+    m_sysFSI->AddSphParticle(utils::ToReal3(pos), rho, pres, mu, utils::ToReal3(vel), utils::ToReal3(tauXxYyZz),
+                             utils::ToReal3(tauXyXzYz));
 }
 
 void ChSystemFsi::AddSPHParticle(const ChVector3d& pos,
@@ -1271,7 +1271,73 @@ size_t ChSystemFsi::AddCylinderBCE(std::shared_ptr<ChBody> body,
     CreateBCE_cylinder(radius, height, solid, capped, polar, points);
     return AddPointsBCE(body, points, frame, solid);
 }
+void ChSystemFsi::CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
+                                             Real wheel_rad,
+                                             Real wheel_w,
+                                             Real gro_h,
+                                             Real gro_w,
+                                             int gro_num,
+                                             std::shared_ptr<SimParams> paramsH,
+                                             Real kernel_h,
+                                             bool cartesian) {
+    Real spacing = kernel_h * paramsH->MULT_INITSPACE;
+    int num_layers = (int)std::floor(1.00001 * wheel_w / spacing) + 1;
+    for (size_t si = 0; si < num_layers; si++) {
+        Real s = -0.5 * wheel_w + spacing * si;
+        if (cartesian)
+            for (Real x = -wheel_rad; x <= wheel_rad; x += spacing) {
+                for (Real y = -wheel_rad; y <= wheel_rad; y += spacing) {
+                    if (x * x + y * y <= wheel_rad * wheel_rad)
+                        posRadBCE.push_back(ChVector3d(x, s, y));
+                }
+            }
+        else {
+            ChVector3d centerPointLF = {0, s, 0};
+            posRadBCE.push_back(ChVector3d(0, s, 0));
+            // wheel
+            int numr = (int)std::floor(1.00001 * wheel_rad / spacing);
+            for (size_t ir = 0; ir < numr; ir++) {
+                Real r = spacing + ir * spacing;
+                int numTheta = (int)std::floor(2 * 3.1415 * r / spacing);
+                for (size_t t = 0; t < numTheta; t++) {
+                    double teta = t * 2 * 3.1415 / numTheta;
+                    ChVector3d BCE_Pos_local = {r * cos(teta), 0, r * sin(teta)};
+                    BCE_Pos_local += centerPointLF;
+                    posRadBCE.push_back(BCE_Pos_local);
+                }
+            }
+            // grouser
+            int numr_g = (int)std::floor(1.00001 * gro_h / spacing);
+            int numw_g = (int)std::floor(1.00001 * gro_w / spacing) + 1;
+            for (size_t ir_g = 0; ir_g < numr_g; ir_g++) {
+                Real r = 0.5 * spacing + ir_g * spacing + wheel_rad;
+                for (size_t t = 0; t < gro_num; t++) {
+                    for (size_t iw_g = 0; iw_g < numw_g; iw_g++) {
+                        Real teta = t * 2 * 3.1415 / gro_num + iw_g * spacing / wheel_rad;
+                        ChVector3d BCE_Pos_local = {r * cos(teta), 0, r * sin(teta)};
+                        BCE_Pos_local += centerPointLF;
+                        posRadBCE.push_back(BCE_Pos_local);
+                    }
+                }
+            }
+        }
+    }
+}
 
+void ChSystemFsi::AddWheelBCE_Grouser(std::shared_ptr<ChBody> body,
+                                      const ChFrame<>& frame,
+                                      double radius,
+                                      double wide,
+                                      double grouser_height,
+                                      double grouser_wide,
+                                      int grouser_num,
+                                      double kernel_h,
+                                      bool cartesian) {
+    std::vector<ChVector3d> bce;
+    CreateBCE_On_Wheel_Grouser(bce, radius, wide, grouser_height, grouser_wide, grouser_num, m_paramsH, kernel_h,
+                               cartesian);
+    AddPointsBCE(body, bce, frame, true);
+}
 size_t ChSystemFsi::AddCylinderAnnulusBCE(std::shared_ptr<ChBody> body,
                                           const ChFrame<>& frame,
                                           double radius_inner,
