@@ -1245,16 +1245,15 @@ size_t ChFsiSystemSPH::AddCylinderBCE(std::shared_ptr<ChBody> body,
     return AddPointsBCE(body, points, frame, solid);
 }
 
-void ChSystemFsi::CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& posRadBCE,
-                                                    Real wheel_rad,
-                                                    Real wheel_w,
-                                                    Real gro_h,
-                                                    Real gro_w,
-                                                    int gro_num,
-                                                    std::shared_ptr<SimParams> paramsH,
-                                                    Real marker_spacing,
-                                                    bool cartesian) {
-    Real spacing = marker_spacing * paramsH->MULT_INITSPACE;
+void ChFsiSystemSPH::CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& posRadBCE,
+                                                       double wheel_rad,
+                                                       double wheel_w,
+                                                       double gro_h,
+                                                       double gro_w,
+                                                       int gro_num,
+                                                       double marker_spacing,
+                                                       bool cartesian) {
+    Real spacing = marker_spacing * m_paramsH->MULT_INITSPACE;
     int num_layers = (int)std::floor(1.00001 * wheel_w / spacing) + 1;
     Real rim_thickness = 3 * spacing;  // 3 layers thick rim
 
@@ -1298,16 +1297,15 @@ void ChSystemFsi::CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& pos
     }
 }
 
-void ChSystemFsi::CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
-                                             Real wheel_rad,
-                                             Real wheel_w,
-                                             Real gro_h,
-                                             Real gro_w,
-                                             int gro_num,
-                                             std::shared_ptr<SimParams> paramsH,
-                                             Real kernel_h,
-                                             bool cartesian) {
-    Real spacing = kernel_h * paramsH->MULT_INITSPACE;
+void ChFsiSystemSPH::CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
+                                                double wheel_rad,
+                                                double wheel_w,
+                                                double gro_h,
+                                                double gro_w,
+                                                int gro_num,
+                                                double kernel_h,
+                                                bool cartesian) {
+    Real spacing = kernel_h * m_paramsH->MULT_INITSPACE;
     int num_layers = (int)std::floor(1.00001 * wheel_w / spacing) + 1;
     for (size_t si = 0; si < num_layers; si++) {
         Real s = -0.5 * wheel_w + spacing * si;
@@ -1351,32 +1349,31 @@ void ChSystemFsi::CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
     }
 }
 
-void ChSystemFsi::AddWheelBCE_Grouser(std::shared_ptr<ChBody> body,
-                                      const ChFrame<>& frame,
-                                      double radius,
-                                      double wide,
-                                      double grouser_height,
-                                      double grouser_wide,
-                                      int grouser_num,
-                                      double kernel_h,
-                                      bool cartesian,
-                                      bool hollow) {
+void ChFsiSystemSPH::AddWheelBCE_Grouser(std::shared_ptr<ChBody> body,
+                                         const ChFrame<>& frame,
+                                         double radius,
+                                         double wide,
+                                         double grouser_height,
+                                         double grouser_wide,
+                                         int grouser_num,
+                                         double kernel_h,
+                                         bool cartesian,
+                                         bool hollow) {
     std::vector<ChVector3d> bce;
     if (hollow) {
-        CreateBCE_On_Wheel_Grouser_Hollow(bce, radius, wide, grouser_height, grouser_wide, grouser_num, m_paramsH,
-                                          kernel_h, cartesian);
+        CreateBCE_On_Wheel_Grouser_Hollow(bce, radius, wide, grouser_height, grouser_wide, grouser_num, kernel_h,
+                                          cartesian);
     } else {
-        CreateBCE_On_Wheel_Grouser(bce, radius, wide, grouser_height, grouser_wide, grouser_num, m_paramsH, kernel_h,
-                                   cartesian);
+        CreateBCE_On_Wheel_Grouser(bce, radius, wide, grouser_height, grouser_wide, grouser_num, kernel_h, cartesian);
     }
     AddPointsBCE(body, bce, frame, true);
 }
-size_t ChSystemFsi::AddCylinderAnnulusBCE(std::shared_ptr<ChBody> body,
-                                          const ChFrame<>& frame,
-                                          double radius_inner,
-                                          double radius_outer,
-                                          double height,
-                                          bool polar) {
+size_t ChFsiSystemSPH::AddCylinderAnnulusBCE(std::shared_ptr<ChBody> body,
+                                             const ChFrame<>& frame,
+                                             double radius_inner,
+                                             double radius_outer,
+                                             double height,
+                                             bool polar) {
     auto delta = m_paramsH->MULT_INITSPACE * m_paramsH->HSML;
     std::vector<ChVector3d> points;
     CreateCylinderAnnulusPoints(radius_inner, radius_outer, height, polar, delta, points);

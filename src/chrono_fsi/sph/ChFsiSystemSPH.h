@@ -35,7 +35,7 @@ namespace sph {
 class FsiDataManager;
 class ChFluidDynamics;
 class BceManager;
-}
+}  // namespace sph
 
 /// @addtogroup fsi_physics
 /// @{
@@ -380,23 +380,21 @@ class CH_FSI_API ChFsiSystemSPH : public ChFsiSystem {
                           bool polar = true);
     /// Hollow wheel function for Moon Ranger
     void CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& posRadBCE,
-                                           Real wheel_rad,
-                                           Real wheel_w,
-                                           Real gro_h,
-                                           Real gro_w,
+                                           double wheel_rad,
+                                           double wheel_w,
+                                           double gro_h,
+                                           double gro_w,
                                            int gro_num,
-                                           std::shared_ptr<SimParams> paramsH,
-                                           Real marker_spacing,
+                                           double marker_spacing,
                                            bool cartesian);
     // Wei functions to make custom BCEs for a wheel
     void CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
-                                    Real wheel_rad,
-                                    Real wheel_w,
-                                    Real gro_h,
-                                    Real gro_w,
+                                    double wheel_rad,
+                                    double wheel_w,
+                                    double gro_h,
+                                    double gro_w,
                                     int gro_num,
-                                    std::shared_ptr<SimParams> paramsH,
-                                    Real kernel_h,
+                                    double kernel_h,
                                     bool cartesian);
 
     // Wei functions to make custom BCEs for a wheel
