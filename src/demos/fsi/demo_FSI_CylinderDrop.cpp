@@ -21,14 +21,14 @@
 #include "chrono/utils/ChUtilsGenerators.h"
 #include "chrono/utils/ChUtilsGeometry.h"
 
-#include "chrono_fsi/ChSystemFsi.h"
+#include "chrono_fsi/sph/ChFsiSystemSPH.h"
 
-#include "chrono_fsi/visualization/ChFsiVisualization.h"
+#include "chrono_fsi/sph/visualization/ChFsiVisualization.h"
 #ifdef CHRONO_OPENGL
-    #include "chrono_fsi/visualization/ChFsiVisualizationGL.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationGL.h"
 #endif
 #ifdef CHRONO_VSG
-    #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationVSG.h"
 #endif
 
 #ifdef CHRONO_POSTPROCESS
@@ -88,7 +88,7 @@ class PositionVisibilityCallback : public ChParticleCloud::VisibilityCallback {
 
 // -----------------------------------------------------------------------------
 
-std::shared_ptr<ChBody> CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI);
+std::shared_ptr<ChBody> CreateSolidPhase(ChSystemSMC& sysMBS, ChFsiSystemSPH& sysFSI);
 void WriteCylinderVTK(const std::string& filename, double radius, double length, const ChFrame<>& frame, int res);
 
 // -----------------------------------------------------------------------------
@@ -96,7 +96,7 @@ void WriteCylinderVTK(const std::string& filename, double radius, double length,
 int main(int argc, char* argv[]) {
     // Create a physics system and an FSI system
     ChSystemSMC sysMBS;
-    ChSystemFsi sysFSI(&sysMBS);
+    ChFsiSystemSPH sysFSI(&sysMBS);
 
     std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_CylinderDrop_Explicit.json");
     if (argc == 1) {
@@ -154,17 +154,20 @@ int main(int argc, char* argv[]) {
         std::cerr << "Error creating directory " << out_dir << std::endl;
         return 1;
     }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
-        std::cerr << "Error creating directory " << out_dir + "/particles" << std::endl;
-        return 1;
-    }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
-        std::cerr << "Error creating directory " << out_dir + "/fsi" << std::endl;
-        return 1;
-    }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
-        std::cerr << "Error creating directory " << out_dir + "/vtk" << std::endl;
-        return 1;
+
+    if (output) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
+            std::cerr << "Error creating directory " << out_dir + "/particles" << std::endl;
+            return 1;
+        }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
+            std::cerr << "Error creating directory " << out_dir + "/fsi" << std::endl;
+            return 1;
+        }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
+            std::cerr << "Error creating directory " << out_dir + "/vtk" << std::endl;
+            return 1;
+        }
     }
 
     // Create a run-tme visualizer
@@ -217,9 +220,6 @@ int main(int argc, char* argv[]) {
         visFSI->Initialize();
     }
 
-    // Record cylinder height
-    ChFunctionInterp height_recorder;
-
     // Start the simulation
     double dT = sysFSI.GetStepSize();
     double time = 0.0;
@@ -227,9 +227,15 @@ int main(int argc, char* argv[]) {
     int out_frame = 0;
     int render_frame = 0;
 
+    std::string out_file = out_dir + "/results.txt";
+    std::ofstream ofile(out_file, std::ios::trunc);
+
     ChTimer timer;
     timer.start();
     while (time < t_end) {
+        auto cylinder_height = sysMBS.GetBodies()[1]->GetPos().z();
+        ofile << time << "\t" << cylinder_height << "\n";
+
         if (output && time >= out_frame / output_fps) {
             std::cout << "-------- Output" << std::endl;
             sysFSI.PrintParticleToFile(out_dir + "/particles");
@@ -247,11 +253,6 @@ int main(int argc, char* argv[]) {
             render_frame++;
         }
 
-        auto cylinder_height = sysMBS.GetBodies()[1]->GetPos().z();
-        std::cout << "step: " << sim_frame << "\ttime: " << time << "\tRTF: " << sysFSI.GetRTF()
-                  << "\tcyl z: " << cylinder_height << std::endl;
-        height_recorder.AddPoint(time, cylinder_height);
-
         // Call the FSI solver
         sysFSI.DoStepDynamics_FSI();
         time += dT;
@@ -260,6 +261,8 @@ int main(int argc, char* argv[]) {
     timer.stop();
     std::cout << "\nSimulation time: " << timer() << " seconds\n" << std::endl;
 
+    ofile.close();
+
 #ifdef CHRONO_POSTPROCESS
     postprocess::ChGnuPlot gplot(out_dir + "/height.gpl");
     gplot.SetGrid();
@@ -267,7 +270,7 @@ int main(int argc, char* argv[]) {
     gplot.SetTitle(speed_title);
     gplot.SetLabelX("time (s)");
     gplot.SetLabelY("height (m)");
-    gplot.Plot(height_recorder, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
+    gplot.Plot(out_file, 1, 2, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
 #endif
 
     return 0;
@@ -276,7 +279,7 @@ int main(int argc, char* argv[]) {
 // -----------------------------------------------------------------------------
 // Create the solid objects in the MBD system and their counterparts in the FSI system
 
-std::shared_ptr<ChBody> CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
+std::shared_ptr<ChBody> CreateSolidPhase(ChSystemSMC& sysMBS, ChFsiSystemSPH& sysFSI) {
     // Set gravity to the rigid body system in chrono
     sysMBS.SetGravitationalAcceleration(sysFSI.GetGravitationalAcceleration());
 

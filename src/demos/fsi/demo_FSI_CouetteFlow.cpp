@@ -36,14 +36,14 @@
 #include "chrono/utils/ChUtilsGenerators.h"
 #include "chrono/utils/ChUtilsInputOutput.h"
 
-#include "chrono_fsi/ChSystemFsi.h"
+#include "chrono_fsi/sph/ChFsiSystemSPH.h"
 
-#include "chrono_fsi/visualization/ChFsiVisualization.h"
+#include "chrono_fsi/sph/visualization/ChFsiVisualization.h"
 #ifdef CHRONO_OPENGL
-    #include "chrono_fsi/visualization/ChFsiVisualizationGL.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationGL.h"
 #endif
 #ifdef CHRONO_VSG
-    #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationVSG.h"
 #endif
 
 #ifdef CHRONO_POSTPROCESS
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
     sysMBS.SetCollisionSystemType(ChCollisionSystem::Type::BULLET);
 
     // Create the FSI problem
-    ChSystemFsi sysFSI(&sysMBS);
+    ChFsiSystemSPH sysFSI(&sysMBS);
     sysFSI.SetVerbose(verbose);
 
     // cylindrical container
@@ -135,13 +135,13 @@ int main(int argc, char* argv[]) {
     sysMBS.SetGravitationalAcceleration(gravity);
 
     // Set CFD fluid properties
-    ChSystemFsi::FluidProperties fluid_props;
+    ChFsiSystemSPH::FluidProperties fluid_props;
     fluid_props.density = density;
     fluid_props.viscosity = viscosity;
     sysFSI.SetCfdSPH(fluid_props);
 
     // Set SPH solution parameters
-    ChSystemFsi::SPHParameters sph_params;
+    ChFsiSystemSPH::SPHParameters sph_params;
     sph_params.sph_method = SPHMethod::I2SPH;
     sph_params.num_bce_layers = 3;
     sph_params.kernel_h = initial_spacing;
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
     sysFSI.SetSPHParameters(sph_params);
 
     // Set linear solver parameters
-    ChSystemFsi::LinSolverParameters linsolv_params;
+    ChFsiSystemSPH::LinSolverParameters linsolv_params;
     linsolv_params.type = SolverType::JACOBI;
     linsolv_params.atol = 0;
     linsolv_params.rtol = 0;
@@ -253,21 +253,27 @@ int main(int argc, char* argv[]) {
         cerr << "Error creating directory " << out_dir << endl;
         return 1;
     }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
-        cerr << "Error creating directory " << out_dir + "/particles" << endl;
-        return 1;
+
+    if (output) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
+            cerr << "Error creating directory " << out_dir + "/particles" << endl;
+            return 1;
+        }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
+            cerr << "Error creating directory " << out_dir + "/fsi" << endl;
+            return 1;
+        }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
+            cerr << "Error creating directory " << out_dir + "/vtk" << endl;
+            return 1;
+        }
     }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
-        cerr << "Error creating directory " << out_dir + "/fsi" << endl;
-        return 1;
-    }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
-        cerr << "Error creating directory " << out_dir + "/vtk" << endl;
-        return 1;
-    }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/snapshots"))) {
-        cerr << "Error creating directory " << out_dir + "/snapshots" << endl;
-        return 1;
+
+    if (snapshots) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/snapshots"))) {
+            cerr << "Error creating directory " << out_dir + "/snapshots" << endl;
+            return 1;
+        }
     }
 
     // Create a run-tme visualizer
@@ -322,8 +328,7 @@ int main(int argc, char* argv[]) {
 
     // Write the information into a txt file
     std::string out_file = out_dir + "/results.txt";
-    std::ofstream ofile;
-    ofile.open(out_file, std::ios::trunc);
+    std::ofstream ofile(out_file, std::ios::trunc);
 
     // Start the simulation
     double time = 0.0;

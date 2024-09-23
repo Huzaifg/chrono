@@ -22,14 +22,14 @@
 #include "chrono/utils/ChUtilsGenerators.h"
 #include "chrono/utils/ChUtilsGeometry.h"
 
-#include "chrono_fsi/ChSystemFsi.h"
+#include "chrono_fsi/sph/ChFsiSystemSPH.h"
 
-#include "chrono_fsi/visualization/ChFsiVisualization.h"
+#include "chrono_fsi/sph/visualization/ChFsiVisualization.h"
 #ifdef CHRONO_OPENGL
-    #include "chrono_fsi/visualization/ChFsiVisualizationGL.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationGL.h"
 #endif
 #ifdef CHRONO_VSG
-    #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationVSG.h"
 #endif
 
 #include "chrono_thirdparty/filesystem/path.h"
@@ -66,7 +66,7 @@ float render_fps = 100;
 // Create the objects of the MBD system. Rigid bodies, and if FSI,
 // their BCE representation are created and added to the systems
 //------------------------------------------------------------------
-void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
+void CreateSolidPhase(ChSystemSMC& sysMBS, ChFsiSystemSPH& sysFSI) {
     // General setting of ground body
     auto ground = chrono_types::make_shared<ChBody>();
     ground->SetFixed(true);
@@ -85,7 +85,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI) {
 int main(int argc, char* argv[]) {
     // Create a physics system and an FSI system
     ChSystemSMC sysMBS;
-    ChSystemFsi sysFSI(&sysMBS);
+    ChFsiSystemSPH sysFSI(&sysMBS);
 
     // Use the default input file or you may enter your input parameters as a command line argument
     std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Poiseuille_flow_Explicit.json");

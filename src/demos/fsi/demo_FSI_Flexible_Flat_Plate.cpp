@@ -33,15 +33,16 @@
     #include "chrono_pardisomkl/ChSolverPardisoMKL.h"
 #endif
 
-#include "chrono_fsi/ChSystemFsi.h"
+#include "chrono_fsi/sph/ChFsiSystemSPH.h"
 
-#include "chrono_fsi/visualization/ChFsiVisualization.h"
+#include "chrono_fsi/sph/visualization/ChFsiVisualization.h"
 #ifdef CHRONO_OPENGL
-    #include "chrono_fsi/visualization/ChFsiVisualizationGL.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationGL.h"
 #endif
 #ifdef CHRONO_VSG
-    #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationVSG.h"
 #endif
+
 #ifdef CHRONO_POSTPROCESS
     #include "chrono_postprocess/ChGnuPlot.h"
 #endif
@@ -73,7 +74,7 @@ double Lz_fluid = 1.0;
 
 // -----------------------------------------------------------------------------
 
-std::shared_ptr<fea::ChMesh> Create_MB_FE(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI, bool verbose);
+std::shared_ptr<fea::ChMesh> Create_MB_FE(ChSystemSMC& sysMBS, ChFsiSystemSPH& sysFSI, bool verbose);
 bool GetProblemSpecs(int argc,
                      char** argv,
                      std::string& inputJSON,
@@ -106,7 +107,7 @@ int main(int argc, char* argv[]) {
 
     // Create a physics system and an FSI system
     ChSystemSMC sysMBS;
-    ChSystemFsi sysFSI(&sysMBS);
+    ChFsiSystemSPH sysFSI(&sysMBS);
 
     sysFSI.SetVerbose(verbose);
 
@@ -146,37 +147,35 @@ int main(int argc, char* argv[]) {
     // Create output directories
     std::string out_dir = GetChronoOutputPath() + "FSI_Flexible_Flat_Plate" + std::to_string(ps_freq);
 
-    if (output || snapshots) {
-        if (!filesystem::create_directory(filesystem::path(out_dir))) {
-            cerr << "Error creating directory " << out_dir << endl;
+    if (!filesystem::create_directory(filesystem::path(out_dir))) {
+        cerr << "Error creating directory " << out_dir << endl;
+        return 1;
+    }
+
+    out_dir = out_dir + "/" + sysFSI.GetPhysicsProblemString() + "_" + sysFSI.GetSphMethodTypeString();
+    if (!filesystem::create_directory(filesystem::path(out_dir))) {
+        cerr << "Error creating directory " << out_dir << endl;
+        return 1;
+    }
+
+    if (output) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
+            cerr << "Error creating directory " << out_dir + "/particles" << endl;
             return 1;
         }
-
-        out_dir = out_dir + "/" + sysFSI.GetPhysicsProblemString() + "_" + sysFSI.GetSphMethodTypeString();
-        if (!filesystem::create_directory(filesystem::path(out_dir))) {
-            cerr << "Error creating directory " << out_dir << endl;
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
+            cerr << "Error creating directory " << out_dir + "/fsi" << endl;
             return 1;
         }
-
-        if (output) {
-            if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
-                cerr << "Error creating directory " << out_dir + "/particles" << endl;
-                return 1;
-            }
-            if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
-                cerr << "Error creating directory " << out_dir + "/fsi" << endl;
-                return 1;
-            }
-            if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
-                cerr << "Error creating directory " << out_dir + "/vtk" << endl;
-                return 1;
-            }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
+            cerr << "Error creating directory " << out_dir + "/vtk" << endl;
+            return 1;
         }
-        if (snapshots) {
-            if (!filesystem::create_directory(filesystem::path(out_dir + "/snapshots"))) {
-                cerr << "Error creating directory " << out_dir + "/snapshots" << endl;
-                return 1;
-            }
+    }
+    if (snapshots) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/snapshots"))) {
+            cerr << "Error creating directory " << out_dir + "/snapshots" << endl;
+            return 1;
         }
     }
 
@@ -199,21 +198,20 @@ int main(int argc, char* argv[]) {
             case ChVisualSystem::Type::OpenGL:
 #ifdef CHRONO_OPENGL
                 visFSI = chrono_types::make_shared<ChFsiVisualizationGL>(&sysFSI);
-                visFSI->AddCamera(ChVector3d(0, -2, 0.25), ChVector3d(0, 0, 0.25));
+                visFSI->AddCamera(ChVector3d(0, -2, 0.75), ChVector3d(0, 0, 0.75));
 #endif
                 break;
             case ChVisualSystem::Type::VSG: {
 #ifdef CHRONO_VSG
                 visFSI = chrono_types::make_shared<ChFsiVisualizationVSG>(&sysFSI);
-                visFSI->AddCamera(ChVector3d(0, -4, 0.25), ChVector3d(0, 0, 0.25));
+                visFSI->AddCamera(ChVector3d(0, -3, 0.75), ChVector3d(0, 0, 0.75));
 #endif
                 break;
             }
         }
 
         visFSI->SetTitle("Chrono::FSI flexible plate");
-        visFSI->SetVerbose(verbose);
-        visFSI->SetSize(1920, 1200);
+        visFSI->SetSize(1280, 720);
         visFSI->SetCameraMoveScale(1.0f);
         visFSI->EnableBoundaryMarkers(true);
         visFSI->EnableFlexBodyMarkers(true);
@@ -251,21 +249,13 @@ int main(int argc, char* argv[]) {
     std::cout << "Initial position of node: " << node->GetPos().x() << " " << node->GetPos().y() << " "
               << node->GetPos().z() << std::endl;
     ChVector3d init_pos = node->GetPos();
-    ChFunctionInterp displacement_recorder;
-    double displacement = 0;
 
     std::string out_file = out_dir + "/results.txt";
-    std::ofstream ofile;
-    if (output) {
-        ofile.open(out_file, std::ios::trunc);
-    }
+    std::ofstream ofile(out_file, std::ios::trunc);
 
     ChTimer timer;
     timer.start();
     while (time < t_end) {
-        if (verbose)
-            cout << sim_frame << " time: " << time << endl;
-
         if (output && time >= out_frame / output_fps) {
             if (verbose)
                 cout << " -- Output frame " << out_frame << " at t = " << time << endl;
@@ -297,14 +287,8 @@ int main(int argc, char* argv[]) {
         }
 
         ChVector3d pos = node->GetPos();
-        displacement =
-            sqrt(pow(pos.x() - init_pos.x(), 2) + pow(pos.y() - init_pos.y(), 2) + pow(pos.z() - init_pos.z(), 2));
-
-        displacement_recorder.AddPoint(time, displacement);
-
-        if (output) {
-            ofile << time << "\t" << pos.x() << "\t" << pos.y() << "\t" << pos.z() << "\n";
-        }
+        double displacement = (pos - init_pos).Length();
+        ofile << time << "\t" << pos.x() << "\t" << pos.y() << "\t" << pos.z() << "\t" << displacement << "\n";
 
         sysFSI.DoStepDynamics_FSI();
 
@@ -313,6 +297,9 @@ int main(int argc, char* argv[]) {
     }
     timer.stop();
     cout << "\nSimulation time: " << timer() << " seconds\n" << endl;
+
+    ofile.close();
+
 #ifdef CHRONO_POSTPROCESS
     postprocess::ChGnuPlot gplot(out_dir + "/height.gpl");
     gplot.SetGrid();
@@ -320,15 +307,16 @@ int main(int argc, char* argv[]) {
     gplot.SetTitle(speed_title);
     gplot.SetLabelX("time (s)");
     gplot.SetLabelY("displacement (m)");
-    gplot.Plot(displacement_recorder, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
+    gplot.Plot(out_file, 1, 5, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
 #endif
+
     return 0;
 }
 
 // -----------------------------------------------------------------------------
 // Create the solid objects in the MBD system and their counterparts in the FSI system
 
-std::shared_ptr<fea::ChMesh> Create_MB_FE(ChSystemSMC& sysMBS, ChSystemFsi& sysFSI, bool verbose) {
+std::shared_ptr<fea::ChMesh> Create_MB_FE(ChSystemSMC& sysMBS, ChFsiSystemSPH& sysFSI, bool verbose) {
     sysMBS.SetGravitationalAcceleration(ChVector3d(0, 0, 0));
     sysFSI.SetGravitationalAcceleration(ChVector3d(0, 0, -9.81));
 

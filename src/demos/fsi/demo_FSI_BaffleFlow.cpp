@@ -20,15 +20,14 @@
 #include "chrono/physics/ChSystemSMC.h"
 #include "chrono/assets/ChVisualShapeBox.h"
 
-#include "chrono_fsi/ChSystemFsi.h"
-#include "chrono_fsi/ChFsiProblem.h"
+#include "chrono_fsi/sph/ChFsiProblemSPH.h"
 
-#include "chrono_fsi/visualization/ChFsiVisualization.h"
+#include "chrono_fsi/sph/visualization/ChFsiVisualization.h"
 #ifdef CHRONO_OPENGL
-    #include "chrono_fsi/visualization/ChFsiVisualizationGL.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationGL.h"
 #endif
 #ifdef CHRONO_VSG
-    #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationVSG.h"
 #endif
 
 #include "chrono_thirdparty/filesystem/path.h"
@@ -47,7 +46,7 @@ using std::endl;
 ChVisualSystem::Type vis_type = ChVisualSystem::Type::VSG;
 
 // Container dimensions
-ChVector3d csize(1.6, 1.4, 0.16);
+ChVector3d csize(1.6, 1.4, 0.5);
 
 // Size of the baffles
 ChVector3d bsize(0.1, 0.1, 0.16);
@@ -69,9 +68,9 @@ bool show_particles_sph = true;
 // ----------------------------------------------------------------------------
 
 // Callback for setting initial SPH particle properties
-class SPHPropertiesCallback : public ChFsiProblem::ParticlePropertiesCallback {
+class SPHPropertiesCallback : public ChFsiProblemSPH::ParticlePropertiesCallback {
   public:
-    SPHPropertiesCallback(const ChSystemFsi& sysFSI, double zero_height, const ChVector3d& init_velocity)
+    SPHPropertiesCallback(const ChFsiSystemSPH& sysFSI, double zero_height, const ChVector3d& init_velocity)
         : ParticlePropertiesCallback(sysFSI), zero_height(zero_height), init_velocity(init_velocity) {
         gz = std::abs(sysFSI.GetGravitationalAcceleration().z());
         c2 = sysFSI.GetSoundSpeed() * sysFSI.GetSoundSpeed();
@@ -92,7 +91,7 @@ class SPHPropertiesCallback : public ChFsiProblem::ParticlePropertiesCallback {
 
 // ----------------------------------------------------------------------------
 
-void CreateBaffles(ChFsiProblem& fsi) {
+void CreateBaffles(ChFsiProblemSPH& fsi) {
     ChSystem& sysMBS = fsi.GetSystyemMBS();
 
     // Common contact material and geometry
@@ -205,7 +204,7 @@ int main(int argc, char* argv[]) {
     // Create the FSI problem
     ChFsiProblemCartesian fsi(sysMBS, initial_spacing);
     fsi.SetVerbose(verbose);
-    ChSystemFsi& sysFSI = fsi.GetSystemFSI();
+    ChFsiSystemSPH& sysFSI = fsi.GetSystemFSI();
 
     // Set gravitational acceleration
     const ChVector3d gravity(0, 0, -9.8);
@@ -213,7 +212,7 @@ int main(int argc, char* argv[]) {
     sysMBS.SetGravitationalAcceleration(gravity);
 
     // Set soil propertiees
-    ChSystemFsi::ElasticMaterialProperties mat_props;
+    ChFsiSystemSPH::ElasticMaterialProperties mat_props;
     mat_props.density = 1800;
     mat_props.Young_modulus = 2e6;
     mat_props.Poisson_ratio = 0.3;
@@ -231,7 +230,7 @@ int main(int argc, char* argv[]) {
     sysFSI.SetElasticSPH(mat_props);
 
     // Set SPH solution parameters
-    ChSystemFsi::SPHParameters sph_params;
+    ChFsiSystemSPH::SPHParameters sph_params;
     sph_params.sph_method = SPHMethod::WCSPH;
     sph_params.kernel_h = 0.012;
     sph_params.initial_spacing = initial_spacing;
@@ -246,7 +245,7 @@ int main(int argc, char* argv[]) {
     CreateBaffles(fsi);
 
     // Enable height-based initial pressure for SPH particles
-    ChVector3 v0(2, 0, 0);
+    ChVector3d v0(1.5, 0, 0);
     fsi.RegisterParticlePropertiesCallback(chrono_types::make_shared<SPHPropertiesCallback>(sysFSI, fsize.z(), v0));
 
     // Create SPH material (do not create boundary BCEs)
@@ -264,6 +263,11 @@ int main(int argc, char* argv[]) {
                         side_walls,           // side walls
                         false                 // top wall
     );
+
+    // Explicitly set computational domain (necessary if no side walls)
+    ChAABB aabb(ChVector3d(-csize.x() / 2, -csize.y() / 2, -0.1),
+                ChVector3d(+csize.x() / 2, +csize.y() / 2, +0.1 + csize.z()));
+    fsi.SetComputationalDomainSize(aabb);
 
     if (show_rigid) {
         ChVector3d ground_box_size(csize.x(), csize.y(), 0.02);

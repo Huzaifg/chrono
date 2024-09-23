@@ -19,14 +19,14 @@
 
 #include "chrono/physics/ChSystemNSC.h"
 
-#include "chrono_fsi/ChFsiProblem.h"
+#include "chrono_fsi/sph/ChFsiProblemSPH.h"
 
-#include "chrono_fsi/visualization/ChFsiVisualization.h"
+#include "chrono_fsi/sph/visualization/ChFsiVisualization.h"
 #ifdef CHRONO_OPENGL
-    #include "chrono_fsi/visualization/ChFsiVisualizationGL.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationGL.h"
 #endif
 #ifdef CHRONO_VSG
-    #include "chrono_fsi/visualization/ChFsiVisualizationVSG.h"
+    #include "chrono_fsi/sph/visualization/ChFsiVisualizationVSG.h"
 #endif
 
 #ifdef CHRONO_POSTPROCESS
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     // Create the FSI problem
     ChFsiProblemCylindrical fsi(sysMBS, initial_spacing);
     fsi.SetVerbose(verbose);
-    ChSystemFsi& sysFSI = fsi.GetSystemFSI();
+    ChFsiSystemSPH& sysFSI = fsi.GetSystemFSI();
 
     // Set gravitational acceleration
     const ChVector3d gravity(0, 0, -9.8);
@@ -115,14 +115,14 @@ int main(int argc, char* argv[]) {
     sysMBS.SetGravitationalAcceleration(gravity);
 
     // Set CFD fluid properties
-    ChSystemFsi::FluidProperties fluid_props;
+    ChFsiSystemSPH::FluidProperties fluid_props;
     fluid_props.density = 1000;
     fluid_props.viscosity = 1;
 
     sysFSI.SetCfdSPH(fluid_props);
 
     // Set SPH solution parameters
-    ChSystemFsi::SPHParameters sph_params;
+    ChFsiSystemSPH::SPHParameters sph_params;
     sph_params.sph_method = SPHMethod::WCSPH;
     sph_params.num_bce_layers = 3;
     sph_params.kernel_h = initial_spacing;
@@ -187,21 +187,27 @@ int main(int argc, char* argv[]) {
         cerr << "Error creating directory " << out_dir << endl;
         return 1;
     }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
-        cerr << "Error creating directory " << out_dir + "/particles" << endl;
-        return 1;
+
+    if (output) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
+            cerr << "Error creating directory " << out_dir + "/particles" << endl;
+            return 1;
+        }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
+            cerr << "Error creating directory " << out_dir + "/fsi" << endl;
+            return 1;
+        }
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
+            cerr << "Error creating directory " << out_dir + "/vtk" << endl;
+            return 1;
+        }
     }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/fsi"))) {
-        cerr << "Error creating directory " << out_dir + "/fsi" << endl;
-        return 1;
-    }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/vtk"))) {
-        cerr << "Error creating directory " << out_dir + "/vtk" << endl;
-        return 1;
-    }
-    if (!filesystem::create_directory(filesystem::path(out_dir + "/snapshots"))) {
-        cerr << "Error creating directory " << out_dir + "/snapshots" << endl;
-        return 1;
+
+    if (snapshots) {
+        if (!filesystem::create_directory(filesystem::path(out_dir + "/snapshots"))) {
+            cerr << "Error creating directory " << out_dir + "/snapshots" << endl;
+            return 1;
+        }
     }
 
     ////fsi.SaveInitialMarkers(out_dir);
@@ -254,18 +260,21 @@ int main(int argc, char* argv[]) {
         visFSI->Initialize();
     }
 
-    // Record sphere height
-    ChFunctionInterp height_recorder;
-
     // Start the simulation
     double time = 0.0;
     int sim_frame = 0;
     int out_frame = 0;
     int render_frame = 0;
 
+    std::string out_file = out_dir + "/results.txt";
+    std::ofstream ofile(out_file, std::ios::trunc);
+
     ChTimer timer;
     timer.start();
     while (time < t_end) {
+        auto body_height = body->GetPos().z();
+        ofile << time << "\t" << body_height << "\n";
+
         if (output && time >= out_frame / output_fps) {
             if (verbose)
                 cout << " -- Output frame " << out_frame << " at t = " << time << endl;
@@ -291,12 +300,6 @@ int main(int argc, char* argv[]) {
             render_frame++;
         }
 
-        auto body_height = body->GetPos().z();
-        height_recorder.AddPoint(time, body_height);
-
-        ////cout << "step: " << sim_frame << "\ttime: " << time << "\tRTF: " << sysFSI.GetRTF()
-        ////     << "\tbody z: " << body_height << endl;
-
         // Call the FSI solver
         sysFSI.DoStepDynamics_FSI();
 
@@ -306,6 +309,8 @@ int main(int argc, char* argv[]) {
     timer.stop();
     cout << "\nSimulation time: " << timer() << " seconds\n" << endl;
 
+    ofile.close();
+
 #ifdef CHRONO_POSTPROCESS
     postprocess::ChGnuPlot gplot(out_dir + "/height.gpl");
     gplot.SetGrid();
@@ -313,7 +318,7 @@ int main(int argc, char* argv[]) {
     gplot.SetTitle(speed_title);
     gplot.SetLabelX("time (s)");
     gplot.SetLabelY("height (m)");
-    gplot.Plot(height_recorder, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
+    gplot.Plot(out_file, 1, 2, "", " with lines lt -1 lw 2 lc rgb'#3333BB' ");
 #endif
 
     return 0;
