@@ -412,7 +412,16 @@ class CH_FSI_API ChSystemFsi {
                           bool solid,
                           bool capped = true,
                           bool polar = true);
-
+    /// Hollow wheel function for Moon Ranger
+    void CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& posRadBCE,
+                                           Real wheel_rad,
+                                           Real wheel_w,
+                                           Real gro_h,
+                                           Real gro_w,
+                                           int gro_num,
+                                           std::shared_ptr<SimParams> paramsH,
+                                           Real marker_spacing,
+                                           bool cartesian);
     // Wei functions to make custom BCEs for a wheel
     void CreateBCE_On_Wheel_Grouser(std::vector<ChVector3d>& posRadBCE,
                                     Real wheel_rad,
@@ -433,7 +442,8 @@ class CH_FSI_API ChSystemFsi {
                              double grouser_wide,
                              int grouser_num,
                              double kernel_h,
-                             bool cartesian);
+                             bool cartesian,
+                             bool hollow = false);
 
     /// Add BCE markers for a cylindrical annulus of specified radii and height and associate them with the given body.
     /// The cylindrical annulus is assumed centered at the origin of the provided frame and aligned with its Z axis.
