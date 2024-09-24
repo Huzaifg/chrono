@@ -132,8 +132,8 @@ int main(int argc, char* argv[]) {
     sysFSI.SetDensity(bulk_density);
 
     // Dimension of the space domain
-    double bxDim = 6 * cylinder_radius;
-    double byDim = 6 * cylinder_radius;
+    double bxDim = 10 * cylinder_radius;
+    double byDim = 10 * cylinder_radius;
     double bzDim = 1.5 * cylinder_height;  // Higher than the cylinder to allow forparticle settling
 
     // Set the periodic boundary condition
@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
 
     // Create SPH particle locations using a sampler
     chrono::utils::ChGridSampler<> sampler(init_spacing);
-    ChVector3d cylinderCenter(0.0, 0.0, -bzDim / 2 + cylinder_height / 2);
+    ChVector3d cylinderCenter(0.0, 0.0, -bzDim / 2 + cylinder_height / 2 + 2 * init_spacing);
     std::vector<ChVector3d> points = sampler.SampleCylinderZ(cylinderCenter, cylinder_radius, cylinder_height / 2);
 
     // Add fluid particles
@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     // Set common material Properties
     auto cmaterial = chrono_types::make_shared<ChContactMaterialSMC>();
     cmaterial->SetYoungModulus(1e8);
-    cmaterial->SetFriction(0.2f);
+    cmaterial->SetFriction(0.389f);
     cmaterial->SetRestitution(0.05f);
     cmaterial->SetAdhesion(0);
 
