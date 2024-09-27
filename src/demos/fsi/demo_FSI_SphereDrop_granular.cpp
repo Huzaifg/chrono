@@ -38,7 +38,6 @@
 using namespace chrono;
 using namespace chrono::fsi;
 
-bool render = true;
 double render_fps = 100;
 
 // Run-time visualization system (OpenGL or VSG)
@@ -60,7 +59,8 @@ bool GetProblemSpecs(int argc,
                      int& ps_freq,
                      double& init_spacing,
                      double& sphere_density,
-                     double& Hdrop) {
+                     double& Hdrop,
+                     bool& render) {
     ChCLI cli(argv[0], "FSI Sphere Drop Demo");
 
     cli.AddOption<double>("Simulation", "t_end", "End time", std::to_string(t_end));
@@ -72,7 +72,7 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<double>("Simulation", "init_spacing", "Initial particle spacing", std::to_string(init_spacing));
     cli.AddOption<double>("Geometry", "sphere_density", "Sphere density", std::to_string(sphere_density));
     cli.AddOption<double>("Geometry", "Hdrop", "Drop height", std::to_string(Hdrop));
-
+    cli.AddOption<bool>("Visualization", "no_vis", "Disable run-time visualization");
     if (!cli.Parse(argc, argv))
         return false;
 
@@ -85,7 +85,7 @@ bool GetProblemSpecs(int argc,
     init_spacing = cli.GetAsType<double>("init_spacing");
     sphere_density = cli.GetAsType<double>("sphere_density");
     Hdrop = cli.GetAsType<double>("Hdrop");
-
+    render = !cli.GetAsType<bool>("no_vis");
     return true;
 }
 
@@ -100,10 +100,11 @@ int main(int argc, char* argv[]) {
     double init_spacing = 0.01;
     double sphere_density = 700;
     double Hdrop = 0.5;
+    bool render = true;
 
     // Parse command-line arguments
     if (!GetProblemSpecs(argc, argv, t_end, verbose, output, output_fps, snapshots, ps_freq, init_spacing,
-                         sphere_density, Hdrop)) {
+                         sphere_density, Hdrop, render)) {
         return 1;
     }
 
@@ -326,7 +327,7 @@ int main(int argc, char* argv[]) {
     }
     timer.stop();
     std::cout << "End Time: " << t_end << std::endl;
-    cout << "\nSimulation time: " << timer() << " seconds\n" << endl;
+    std::cout << "\nSimulation time: " << timer() << " seconds\n" << std::endl;
 
     return 0;
 }

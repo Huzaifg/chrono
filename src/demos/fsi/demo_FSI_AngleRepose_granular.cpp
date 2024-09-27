@@ -53,7 +53,7 @@ double granular_particle_diameter = 0.002;  // Set in JSON - Not overwritten
 double youngs_modulus = 2e6;                // Set in JSON - Not overwritten
 
 // Global arguments
-bool render = true;
+
 double render_fps = 100;
 std::string inputJson = GetChronoDataFile("fsi/input_json/demo_FSI_Angle_Repose_Granular.json");
 
@@ -68,7 +68,8 @@ bool GetProblemSpecs(int argc,
                      int& ps_freq,
                      double& cylinder_radius,
                      double& cylinder_height,
-                     double& init_spacing) {
+                     double& init_spacing,
+                     bool& render) {
     ChCLI cli(argv[0], "FSI Angle of Repose Demo");
 
     cli.AddOption<double>("Simulation", "t_end", "End time", std::to_string(t_end));
@@ -77,6 +78,7 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<double>("Output", "output_fps", "Output FPS", std::to_string(output_fps));
     cli.AddOption<bool>("Output", "snapshots", "Enable snapshots", std::to_string(snapshots));
     cli.AddOption<int>("Simulation", "ps_freq", "Proximity search frequency", std::to_string(ps_freq));
+    cli.AddOption<bool>("Visualization", "no_vis", "Disable run-time visualization");
     cli.AddOption<double>("Geometry", "cylinder_radius", "Cylinder radius", std::to_string(cylinder_radius));
     cli.AddOption<double>("Geometry", "cylinder_height", "Cylinder height", std::to_string(cylinder_height));
     cli.AddOption<double>("Simulation", "init_spacing", "Initial particle spacing", std::to_string(init_spacing));
@@ -93,7 +95,7 @@ bool GetProblemSpecs(int argc,
     cylinder_radius = cli.GetAsType<double>("cylinder_radius");
     cylinder_height = cli.GetAsType<double>("cylinder_height");
     init_spacing = cli.GetAsType<double>("init_spacing");
-
+    render = !cli.GetAsType<bool>("no_vis");
     return true;
 }
 
@@ -108,10 +110,10 @@ int main(int argc, char* argv[]) {
     double cylinder_radius = 0.5;
     double cylinder_height = 1.0;
     double init_spacing = 0.01;
-
+    bool render = true;
     // Parse command-line arguments
     if (!GetProblemSpecs(argc, argv, t_end, verbose, output, output_fps, snapshots, ps_freq, cylinder_radius,
-                         cylinder_height, init_spacing)) {
+                         cylinder_height, init_spacing, render)) {
         return 1;
     }
 
