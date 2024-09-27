@@ -696,13 +696,15 @@ __device__ inline Real4 DifVelocityRho_ElasticSPH(Real W_ini_inv,
 
     // Artificial viscosity
     Real vAB_rAB = dot(velMasA - velMasB, dist3);
-    // if (vAB_rAB < 0.0) {
-    Real nu = -paramsD.Ar_vis_alpha * paramsD.HSML * paramsD.Cs * paramsD.invrho0;
-    Real derivM1 = -Mass * (nu * vAB_rAB * (invd * invd));  //+ paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML
-    derivVx += derivM1 * gradW.x;
-    derivVy += derivM1 * gradW.y;
-    derivVz += derivM1 * gradW.z;
-    // }
+    if (vAB_rAB < 0.0) {
+        Real nu = -paramsD.Ar_vis_alpha * paramsD.HSML * paramsD.Cs * paramsD.invrho0;
+        // Real derivM1 =
+        // -Mass * (nu * vAB_rAB * (invd * invd));  //+ paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML
+        Real derivM1 = -Mass * (nu * vAB_rAB / (d * d + paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML));
+        derivVx += derivM1 * gradW.x;
+        derivVy += derivM1 * gradW.y;
+        derivVz += derivM1 * gradW.z;
+    }
 
     // Artifical pressure to handle tensile instability issue.
     // A complete artifical stress should be implemented in the future.
@@ -1169,28 +1171,28 @@ __global__ void NS_SSR(const uint* activityIdentifierD,
         Real3 TauXyXzYzB = sortedTauXyXzYz[j];
 
         // TODO: Might need to eliminate this double application of ADAMI BC based on what Wei says
-        if (IsBceMarker(rhoPresMuB.w)) {
-            Real chi_A = sortedKernelSupport[index].y / sortedKernelSupport[index].x;
-            Real chi_B = sortedKernelSupport[j].y / sortedKernelSupport[j].x;
-            Real dA = SuppRadii * (2.0 * chi_A - 1.0);
-            Real dB = SuppRadii * (2.0 * chi_B - 1.0);
+        // if (IsBceMarker(rhoPresMuB.w)) {
+        //     Real chi_A = sortedKernelSupport[index].y / sortedKernelSupport[index].x;
+        //     Real chi_B = sortedKernelSupport[j].y / sortedKernelSupport[j].x;
+        //     Real dA = SuppRadii * (2.0 * chi_A - 1.0);
+        //     Real dB = SuppRadii * (2.0 * chi_B - 1.0);
 
-            int predicateA = (dA < 0.0);
-            dA = predicateA ? 0.01 * SuppRadii : dA;
+        //     int predicateA = (dA < 0.0);
+        //     dA = predicateA ? 0.01 * SuppRadii : dA;
 
-            int predicateB = (dB < 0.0);
-            dB = predicateB ? 0.01 * SuppRadii : dB;
+        //     int predicateB = (dB < 0.0);
+        //     dB = predicateB ? 0.01 * SuppRadii : dB;
 
-            Real dAB = dB / dA;
+        //     Real dAB = dB / dA;
 
-            // Use predication to avoid branching
-            int predicateAB = (dAB > 0.5);
-            dAB = predicateAB ? 0.5 : dAB;
+        //     // Use predication to avoid branching
+        //     int predicateAB = (dAB > 0.5);
+        //     dAB = predicateAB ? 0.5 : dAB;
 
-            Real3 velMasB_new = dAB * (velMasB - velMasA) + velMasB;
+        //     Real3 velMasB_new = dAB * (velMasB - velMasA) + velMasB;
 
-            velMasB = velMasB_new;
-        }
+        //     velMasB = velMasB_new;
+        // }
 
         // Correct the kernel function gradient
         Real w_AB = W3h(d);
@@ -1514,11 +1516,11 @@ void ChFsiForceExplicitSPH::CollideWrapper(Real time, bool firstHalfStep) {
 
     thrust::device_vector<Real3> sortedKernelSupport(m_data_mgr.countersH->numAllMarkers);
     // Calculate the kernel support of each particle
-    calcKernelSupport<<<numBlocks, numThreads>>>(
-        mR4CAST(m_sortedSphMarkers_D->posRadD), mR4CAST(m_sortedSphMarkers_D->rhoPresMuD), mR3CAST(sortedKernelSupport),
-        U1CAST(m_data_mgr.markersProximity_D->mapOriginalToSorted), U1CAST(m_data_mgr.numNeighborsPerPart),
-        U1CAST(m_data_mgr.neighborList), error_flagD);
-    cudaCheckErrorFlag(error_flagD, "calcKernelSupport");
+    // calcKernelSupport<<<numBlocks, numThreads>>>(
+    //     mR4CAST(m_sortedSphMarkers_D->posRadD), mR4CAST(m_sortedSphMarkers_D->rhoPresMuD),
+    //     mR3CAST(sortedKernelSupport), U1CAST(m_data_mgr.markersProximity_D->mapOriginalToSorted),
+    //     U1CAST(m_data_mgr.numNeighborsPerPart), U1CAST(m_data_mgr.neighborList), error_flagD);
+    // cudaCheckErrorFlag(error_flagD, "calcKernelSupport");
 
     updateBoundaryPres<<<numBlocks, numThreads>>>(
         U1CAST(m_data_mgr.activityIdentifierD), U1CAST(m_data_mgr.numNeighborsPerPart), U1CAST(m_data_mgr.neighborList),
