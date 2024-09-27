@@ -397,6 +397,7 @@ int main(int argc, char* argv[]) {
         sim_frame++;
     }
     timer.stop();
+    std::cout << "End Time: " << t_end << std::endl;
     std::cout << "\nSimulation time: " << timer() << " seconds\n" << std::endl;
 
     return 0;

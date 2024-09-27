@@ -322,6 +322,7 @@ int main(int argc, char* argv[]) {
         sim_frame++;
     }
     timer.stop();
+    std::cout << "End Time: " << t_end << std::endl;
     cout << "\nSimulation time: " << timer() << " seconds\n" << endl;
 
     ofile.close();

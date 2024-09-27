@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
     auto fun = chrono_types::make_shared<WaveFunction>(0.25, 0.2, 1);
     auto body = fsi.AddWaveMaker(ChFsiProblemSPH::WavemakerType::PISTON, csize, ChVector3d(0, 0, 0), fun);
     ////auto fun = chrono_types::make_shared<WaveFunction>(0.25, 0.4, 1.25);
-    ////auto body = fsi.AddWaveMaker(ChFsiProblemSPH::WavemakerType::FLAP, csize, ChVector3d(0, 0, 0), fun);   
+    ////auto body = fsi.AddWaveMaker(ChFsiProblemSPH::WavemakerType::FLAP, csize, ChVector3d(0, 0, 0), fun);
 
     fsi.Initialize();
 
