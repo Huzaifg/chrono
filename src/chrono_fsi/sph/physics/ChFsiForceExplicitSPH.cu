@@ -696,15 +696,15 @@ __device__ inline Real4 DifVelocityRho_ElasticSPH(Real W_ini_inv,
 
     // Artificial viscosity
     Real vAB_rAB = dot(velMasA - velMasB, dist3);
-    if (vAB_rAB < 0.0) {
-        Real nu = -paramsD.Ar_vis_alpha * paramsD.HSML * paramsD.Cs * paramsD.invrho0;
-        // Real derivM1 =
-        // -Mass * (nu * vAB_rAB * (invd * invd));  //+ paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML
-        Real derivM1 = -Mass * (nu * vAB_rAB / (d * d + paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML));
-        derivVx += derivM1 * gradW.x;
-        derivVy += derivM1 * gradW.y;
-        derivVz += derivM1 * gradW.z;
-    }
+    // if (vAB_rAB < 0.0) {
+    Real nu = -paramsD.Ar_vis_alpha * paramsD.HSML * paramsD.Cs * paramsD.invrho0;
+    // Real derivM1 =
+    // -Mass * (nu * vAB_rAB * (invd * invd));  //+ paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML
+    Real derivM1 = -Mass * (nu * vAB_rAB / (d * d + paramsD.epsMinMarkersDis * paramsD.HSML * paramsD.HSML));
+    derivVx += derivM1 * gradW.x;
+    derivVy += derivM1 * gradW.y;
+    derivVz += derivM1 * gradW.z;
+    // }
 
     // Artifical pressure to handle tensile instability issue.
     // A complete artifical stress should be implemented in the future.
