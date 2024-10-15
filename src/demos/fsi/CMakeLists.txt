@@ -19,6 +19,8 @@ set(DEMOS ${DEMOS}
    demo_FSI_SingleWheel_Rassor
    demo_FSI_AngleRepose_granular
    demo_FSI_SphereDrop_granular
+   demo_FSI_SingleWheel_MoonRanger_Acc_Benchmark
+   demo_FSI_SingleWheel_MoonRanger_VV
    )
 
 if(ENABLE_MODULE_PARDISO_MKL)

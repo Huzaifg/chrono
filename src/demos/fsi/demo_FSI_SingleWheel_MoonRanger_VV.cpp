@@ -68,6 +68,7 @@ int grouser_num = 18;
 std::string wheel_obj = "robot/moonranger/obj/moonranger_wheel.obj";
 
 double total_time = 10.0;
+double wheel_vel = 0.017;  // Need to confirm this value
 
 // linear actuator and angular actuator
 auto actuator = chrono_types::make_shared<ChLinkLockLinActuator>();
@@ -80,7 +81,7 @@ int out_fps = 10;
 int print_fps = 100;
 
 // Output directories and settings
-std::string out_dir = GetChronoOutputPath() + "FSI_Single_Wheel_Test_MoonRanger";
+std::string out_dir = GetChronoOutputPath() + "FSI_Single_Wheel_Test_MoonRanger_VV";
 
 // Enable/disable run-time visualization (if Chrono::OpenGL is available)
 bool render = false;
@@ -199,7 +200,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS,
     wheel->SetFrameCOMToRef(ChFrame<>(mcog, principal_inertia_rot));
 
     // Set inertia
-    wheel->SetMass(total_mass * 1.0 / 3.0);
+    wheel->SetMass(total_mass * 1.0 / 2.0);
     // wheel->SetInertiaXX(mdensity * principal_I);
     wheel->SetInertiaXX(wheel_IXX);
     wheel->SetPosDt(wheel_IniVel);
@@ -235,7 +236,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS,
 
     // Create the chassis -- always THIRD body in the system
     auto chassis = chrono_types::make_shared<ChBody>();
-    chassis->SetMass(total_mass * 1.0 / 3.0);
+    chassis->SetMass(total_mass * 1.0 / 3.0);  // This does not matter because the chassis is constrained
     chassis->SetPos(wheel->GetPos());
     chassis->EnableCollision(false);
     chassis->SetFixed(false);
@@ -244,7 +245,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS,
 
     // Create the axle -- always FOURTH body in the system
     auto axle = chrono_types::make_shared<ChBody>();
-    axle->SetMass(total_mass * 1.0 / 3.0);
+    axle->SetMass(total_mass * 1.0 / 2.0);  // Because chassis is constrained this has to be 1/2
     axle->SetPos(wheel->GetPos());
     axle->EnableCollision(false);
     axle->SetFixed(false);
@@ -256,6 +257,16 @@ void CreateSolidPhase(ChSystemSMC& sysMBS,
 
     // Connect the chassis to the containing bin (ground) through a translational
     // joint and create a linear actuator.
+    double velocity = wheel_vel;  // wheel_AngVel * wheel_radius * (1.0 - wheel_slip);
+    auto actuator_fun = chrono_types::make_shared<ChFunctionRamp>(0.0, velocity);
+
+    actuator->Initialize(ground, chassis, false, ChFrame<>(chassis->GetPos(), QUNIT),
+                         ChFrame<>(chassis->GetPos() + ChVector3d(1, 0, 0), QUNIT));
+    actuator->SetName("actuator");
+    actuator->SetDistanceOffset(1);
+    actuator->SetActuatorFunction(actuator_fun);
+    sysMBS.AddLink(actuator);
+
     auto prismatic1 = chrono_types::make_shared<ChLinkLockPrismatic>();
     prismatic1->Initialize(ground, chassis, ChFrame<>(chassis->GetPos(), QuatFromAngleY(CH_PI_2)));
     prismatic1->SetName("prismatic_chassis_ground");
@@ -278,9 +289,8 @@ bool GetProblemSpecs(int argc,
                      char** argv,
                      std::string& sim_number_str,
                      double& total_mass,
-                     double& slope_angle,
-                     double& wheel_AngVel,
                      double& grav_mag,
+                     double& wheel_slip,
                      double& grouser_height,
                      double& grouser_width,  // New parameter
                      int& neighbor_search,
@@ -288,19 +298,19 @@ bool GetProblemSpecs(int argc,
                      bool& output,
                      bool& render,
                      double& initial_spacing,
-                     double& kernel_length) {
+                     double& kernel_length) {  // Add wheel_slip parameter
     ChCLI cli(argv[0], "FSI Single Wheel Acceleration Benchmark");
 
     cli.AddOption<std::string>("Simulation", "s,sim_number", "Simulation number", "0");
     cli.AddOption<double>("Simulation", "m,mass", "Total mass", "17.5");
-    cli.AddOption<double>("Simulation", "a,angle", "Slope angle (degrees)", "0.0");
-    cli.AddOption<double>("Simulation", "w,angular_vel", "Wheel angular velocity", "0.0");
+
     cli.AddOption<double>("Simulation", "g,gravity", "Gravity magnitude", "9.81");
     cli.AddOption<double>("Simulation", "grouser_height", "Grouser height", "0.01");
     cli.AddOption<double>("Simulation", "grouser_width", "Grouser width", "0.0015");  // New option
     cli.AddOption<int>("Simulation", "n,neighbor_search", "Neighbor search steps", "1");
     cli.AddOption<double>("Simulation", "i,initial_spacing", "Initial particle spacing", "0.01");
     cli.AddOption<double>("Simulation", "k,kernel_length", "Kernel length", "0.01");
+    cli.AddOption<double>("Simulation", "slip", "Wheel slip", "0.0");  // New option for wheel slip
 
     cli.AddOption<bool>("Output", "quiet", "Disable verbose terminal output", "false");
     cli.AddOption<bool>("Output", "o,output", "Enable output", "false");
@@ -313,14 +323,13 @@ bool GetProblemSpecs(int argc,
 
     sim_number_str = cli.GetAsType<std::string>("sim_number");
     total_mass = cli.GetAsType<double>("mass");
-    slope_angle = cli.GetAsType<double>("angle");
-    wheel_AngVel = cli.GetAsType<double>("angular_vel");
     grav_mag = cli.GetAsType<double>("gravity");
     grouser_height = cli.GetAsType<double>("grouser_height");
     grouser_width = cli.GetAsType<double>("grouser_width");  // New parameter
     neighbor_search = cli.GetAsType<int>("neighbor_search");
     initial_spacing = cli.GetAsType<double>("initial_spacing");
     kernel_length = cli.GetAsType<double>("kernel_length");
+    wheel_slip = cli.GetAsType<double>("slip");  // Retrieve wheel slip from CLI
 
     verbose = !cli.GetAsType<bool>("quiet");
     output = cli.GetAsType<bool>("output");
@@ -339,36 +348,40 @@ int main(int argc, char* argv[]) {
     // Parse command-line arguments
     std::string sim_number_str;
     double total_mass;
-    double slope_angle;
     double wheel_AngVel;
     double grav_mag;
     double grouser_height;
-    double grouser_width;  // New parameter
+    double grouser_width;
     int neighbor_search;
     bool verbose;
     bool output;
     bool render;
     double initial_spacing;
     double kernel_length;
+    double wheel_slip;
 
-    if (!GetProblemSpecs(argc, argv, sim_number_str, total_mass, slope_angle, wheel_AngVel, grav_mag, grouser_height,
-                         grouser_width, neighbor_search, verbose, output, render, initial_spacing, kernel_length)) {
+    if (!GetProblemSpecs(argc, argv, sim_number_str, total_mass, grav_mag, wheel_slip, grouser_height, grouser_width,
+                         neighbor_search, verbose, output, render, initial_spacing, kernel_length)) {
         return 1;
     }
+
+    // Calculate wheel angular velocity based on slip
+    wheel_AngVel = wheel_vel / ((1 - wheel_slip) * (wheel_radius + grouser_height));
 
     sysFSI.SetVerbose(verbose);
 
     std::cout << "Sim Number: " << sim_number_str << std::endl;
     std::cout << "Total Mass: " << total_mass << std::endl;
-    std::cout << "Slope Angle: " << slope_angle << std::endl;
     std::cout << "Wheel Angular Velocity: " << wheel_AngVel << std::endl;
     std::cout << "Gravity Magnitude: " << grav_mag << std::endl;
     std::cout << "Grouser Height: " << grouser_height << std::endl;
     std::cout << "Grouser Width: " << grouser_width << std::endl;  // New output
-    slope_angle = slope_angle / 180.0 * CH_PI;
+
+    double slope_angle = 0.0;  // Set slope angle to 0
+    std::cout << "Slope Angle: " << slope_angle << std::endl;
 
     std::cout << "verbose: " << verbose << std::endl;
-    out_dir = out_dir + std::to_string(neighbor_search) + "_newVis" + "/";
+    out_dir = out_dir + std::to_string(neighbor_search) + "/";
 
     // if (output) {
     // Create oputput directories
@@ -378,7 +391,7 @@ int main(int argc, char* argv[]) {
     }
     // }
 
-    out_dir = out_dir + sim_number_str + "/";
+    out_dir = out_dir + sim_number_str + "_" + std::to_string(grouser_width) + "/";
 
     // Output the result to verify
     std::cout << "Output directory: " << out_dir << std::endl;
@@ -412,7 +425,7 @@ int main(int argc, char* argv[]) {
     // Set initial spacing and kernel length after reading JSON file
     sysFSI.SetInitialSpacing(initial_spacing);
     sysFSI.SetKernelLength(kernel_length);
-    sysFSI.SetStepSize(1e-4);
+    sysFSI.SetStepSize(2.5e-4);
     sysFSI.SetOutputLength(2);
 
     double gravity_G = -grav_mag;

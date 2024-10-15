@@ -1253,16 +1253,16 @@ void ChFsiSystemSPH::CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& 
                                                        int gro_num,
                                                        double marker_spacing,
                                                        bool cartesian) {
-    Real spacing = marker_spacing * m_paramsH->MULT_INITSPACE;
+    double spacing = marker_spacing * m_paramsH->MULT_INITSPACE;
     int num_layers = (int)std::floor(1.00001 * wheel_w / spacing) + 1;
-    Real rim_thickness = 3 * spacing;  // 3 layers thick rim
+    double rim_thickness = 3 * spacing;  // 3 layers thick rim
 
     for (size_t si = 0; si < num_layers; si++) {
-        Real s = -0.5 * wheel_w + spacing * si;
+        double s = -0.5 * wheel_w + spacing * si;
         if (cartesian) {
-            for (Real x = -wheel_rad; x <= wheel_rad; x += spacing) {
-                for (Real y = -wheel_rad; y <= wheel_rad; y += spacing) {
-                    Real r = std::sqrt(x * x + y * y);
+            for (double x = -wheel_rad; x <= wheel_rad; x += spacing) {
+                for (double y = -wheel_rad; y <= wheel_rad; y += spacing) {
+                    double r = std::sqrt(x * x + y * y);
                     if (wheel_rad - rim_thickness <= r && r <= wheel_rad)
                         posRadBCE.push_back(ChVector3d(x, s, y));
                 }
@@ -1271,7 +1271,7 @@ void ChFsiSystemSPH::CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& 
             // wheel rim
             int numr = (int)std::floor(1.00001 * rim_thickness / spacing);
             for (size_t ir = 0; ir < numr; ir++) {
-                Real r = wheel_rad - rim_thickness + ir * spacing;
+                double r = wheel_rad - rim_thickness + (ir + 1) * spacing;
                 int numTheta = (int)std::floor(2 * CH_PI * r / spacing);
                 for (size_t t = 0; t < numTheta; t++) {
                     double teta = t * 2 * CH_PI / numTheta;
@@ -1284,10 +1284,10 @@ void ChFsiSystemSPH::CreateBCE_On_Wheel_Grouser_Hollow(std::vector<ChVector3d>& 
             int numr_g = std::max(1, (int)std::floor(1.00001 * gro_h / spacing));
             int numw_g = std::max(1, (int)std::floor(1.00001 * gro_w / spacing));
             for (size_t ir_g = 0; ir_g < numr_g; ir_g++) {
-                Real r = wheel_rad + gro_h * (ir_g + 0.5) / numr_g;
+                double r = 1. * spacing + ir_g * spacing + wheel_rad;
                 for (size_t t = 0; t < gro_num; t++) {
                     for (size_t iw_g = 0; iw_g < numw_g; iw_g++) {
-                        Real teta = t * 2 * CH_PI / gro_num + gro_w * (iw_g + 0.5) / (numw_g * wheel_rad);
+                        double teta = t * 2 * 3.1415 / gro_num + iw_g * spacing / wheel_rad;
                         ChVector3d BCE_Pos_local = {r * std::cos(teta), s, r * std::sin(teta)};
                         posRadBCE.push_back(BCE_Pos_local);
                     }

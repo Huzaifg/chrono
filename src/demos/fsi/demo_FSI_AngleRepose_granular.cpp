@@ -145,6 +145,7 @@ int main(int argc, char* argv[]) {
     ChVector3d cMax(bxDim / 2 + 10.0 * initSpace0 / 2.0, byDim / 2 + 1.0 * initSpace0 / 2.0,
                     2.0 * bzDim + 5 * initSpace0);
     sysFSI.SetBoundaries(cMin, cMax);
+    sysFSI.SetOutputLength(2);
 
     // Create SPH particle locations using a sampler
     chrono::utils::ChGridSampler<> sampler(init_spacing);

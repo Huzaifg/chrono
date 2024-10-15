@@ -162,7 +162,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS,
     sysFSI.AddBoxContainerBCE(ground,                                       //
                               ChFrame<>(ChVector3d(0., 0., 0.), QUNIT),     //
                               ChVector3d(1.2 * bxDim, 1.2 * byDim, bzDim),  //
-                              ChVector3i(2, 0, -1));
+                              ChVector3i(2, 2, -1));
 
     // Create the wheel -- always SECOND body in the system
     auto trimesh = chrono_types::make_shared<ChTriangleMeshConnected>();
@@ -426,9 +426,12 @@ int main(int argc, char* argv[]) {
     size_t numPart = (int)points.size();
     double gz = gravity_G;
     for (int i = 0; i < numPart; i++) {
-        double pre_ini = sysFSI.GetDensity() * gz * (-points[i].z() + bzDim);
-        double rho_ini = sysFSI.GetDensity() + pre_ini / (sysFSI.GetSoundSpeed() * sysFSI.GetSoundSpeed());
-        sysFSI.AddSPHParticle(points[i], rho_ini, pre_ini, sysFSI.GetViscosity(), ChVector3i(0.0, 0, 0));
+        double pre_ini = sysFSI.GetDensity() * gz * (-(points[i].z() + bzDim / 2) + bzDim);
+        sysFSI.AddSPHParticle(points[i], sysFSI.GetDensity(), 0, sysFSI.GetViscosity(),
+                              ChVector3d(0),         // initial velocity
+                              ChVector3d(-pre_ini),  // tauxxyyzz
+                              ChVector3d(0)          // tauxyxzyz
+        );
     }
 
     // Create Solid region and attach BCE SPH particles
@@ -436,7 +439,7 @@ int main(int argc, char* argv[]) {
                      wheel_width, grouser_wide, grouser_num, kernelLength, total_mass, iniSpacing);
 
     // Set simulation data output length
-    sysFSI.SetOutputLength(0);
+    sysFSI.SetOutputLength(2);
 
     // Construction of the FSI system must be finalized before running
     sysFSI.Initialize();
