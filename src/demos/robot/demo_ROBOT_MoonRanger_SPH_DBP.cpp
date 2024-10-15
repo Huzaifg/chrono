@@ -80,18 +80,8 @@ const double wheel_x = 0.2222;
 const double wheel_y = 0.29207;
 const double wheel_z = -0.1805;
 
-// Save data as csv files to see the results off-line using Paraview
-bool output = true;
-double out_fps = 10;
-
-int print_fps = 100;
-
 // Output directories and settings
 std::string out_dir = GetChronoOutputPath() + "FSI_MoonRanger_DBP";
-
-// Enable/disable run-time visualization (if Chrono::OpenGL is available)
-bool render = true;
-float render_fps = 100;
 
 // Verbose terminal output
 bool verbose_fsi = true;
@@ -213,7 +203,7 @@ void CreateSolidPhase(ChSystemSMC& sysMBS,
     auto spring_1 = chrono_types::make_shared<ChLinkTSDA>();
     spring_1->Initialize(springBox, Body_1, true, ChVector3d(0, 0, 0), ChVector3d(0, 0, 0));
     spring_1->SetRestLength(abs(springBox->GetPos().x() - Body_1->GetPos().x()));
-    spring_1->SetSpringCoefficient(50);
+    spring_1->SetSpringCoefficient(200);
     spring_1->SetDampingCoefficient(0);
     sysMBS.AddLink(spring_1);
 
@@ -264,7 +254,7 @@ bool GetProblemSpecs(int argc,
     cli.AddOption<double>("Simulation", "k,kernel_length", "Kernel length", "0.01");
 
     cli.AddOption<bool>("Output", "quiet", "Disable verbose terminal output", "false");
-    cli.AddOption<bool>("Output", "o,output", "Enable output", "true");
+    cli.AddOption<bool>("Output", "o,output", "Enable output", "false");
     cli.AddOption<bool>("Visualization", "r,render", "Enable run-time visualization", "false");
 
     if (!cli.Parse(argc, argv)) {
@@ -283,7 +273,7 @@ bool GetProblemSpecs(int argc,
     verbose = !cli.GetAsType<bool>("quiet");
     output = cli.GetAsType<bool>("output");
     render = cli.GetAsType<bool>("render");
-
+    std::cout << "Render: " << render << std::endl;
     return true;
 }
 
@@ -376,16 +366,22 @@ int main(int argc, char* argv[]) {
     double grouser_width;  // New parameter
     int neighbor_search;
     bool verbose;
-    bool output;
-    bool render;
     double initial_spacing;
     double kernel_length;
+    // Save data as csv files to see the results off-line using Paraview
+    bool output = false;
+    double out_fps = 10;
+
+    int print_fps = 100;
+
+    // Enable/disable run-time visualization
+    bool render = false;
+    float render_fps = 100;
 
     if (!GetProblemSpecs(argc, argv, sim_number_str, wheel_AngVel, grouser_height, grouser_width, neighbor_search,
                          verbose, output, render, initial_spacing, kernel_length)) {
         return 1;
     }
-
     sysFSI.SetVerbose(verbose);
 
     std::cout << "Sim Number: " << sim_number_str << std::endl;
@@ -408,13 +404,12 @@ int main(int argc, char* argv[]) {
 
     // Output the result to verify
     std::cout << "Output directory: " << out_dir << std::endl;
-
+    // Create oputput directories
+    if (!filesystem::create_directory(filesystem::path(out_dir))) {
+        std::cerr << "Error creating directory " << out_dir << std::endl;
+        return 1;
+    }
     if (output) {
-        // Create oputput directories
-        if (!filesystem::create_directory(filesystem::path(out_dir))) {
-            std::cerr << "Error creating directory " << out_dir << std::endl;
-            return 1;
-        }
         if (!filesystem::create_directory(filesystem::path(out_dir + "/particles"))) {
             std::cerr << "Error creating directory " << out_dir + "/particles" << std::endl;
             return 1;
@@ -438,13 +433,15 @@ int main(int argc, char* argv[]) {
         GetChronoDataFile("fsi/input_json/demo_FSI_SingleWheelTest_MoonRanger_Granular.json"));
     sysFSI.SetNumProximitySearchSteps(neighbor_search);
     // sysFSI.SetNumProximitySearchSteps(1);
+    ChVector3d active_domain_box(0.3, 0.12, 0.3);
+    sysFSI.SetActiveDomain(active_domain_box);
     sysFSI.SetActiveDomainDelay(1.0);
     sysFSI.SetStepSize(2.5e-4);
 
     // Set initial spacing and kernel length after reading JSON file
     sysFSI.SetInitialSpacing(initial_spacing);
     sysFSI.SetKernelLength(kernel_length);
-    sysFSI.SetOutputLength(2);
+    sysFSI.SetOutputLength(1);
 
     ChVector3d gravity = ChVector3d(0, 0, -9.81);
     sysMBS.SetGravitationalAcceleration(gravity);
@@ -493,9 +490,6 @@ int main(int argc, char* argv[]) {
     CreateSolidPhase(sysMBS, sysFSI, init_loc, wheel_AngVel, render, wheel_radius, grouser_height, wheel_width,
                      grouser_width, grouser_num, iniSpacing);
 
-    // Set simulation data output length
-    sysFSI.SetOutputLength(2);
-
     // Construction of the FSI system must be finalized before running
     sysFSI.Initialize();
 
@@ -536,11 +530,11 @@ int main(int argc, char* argv[]) {
     std::ofstream myFile;
     std::ofstream extraWheelInfo;
     std::ofstream spring_InitPos;
-    if (output) {
-        myFile.open(out_dir + "/results.txt", std::ios::trunc);
-        extraWheelInfo.open(out_dir + "/extra_wheel_info.txt", std::ios::trunc);
-        spring_InitPos.open(out_dir + "/spring_init_pos.txt", std::ios::trunc);
-    }
+    // if (output) {
+    myFile.open(out_dir + "/results.txt", std::ios::trunc);
+    extraWheelInfo.open(out_dir + "/extra_wheel_info.txt", std::ios::trunc);
+    spring_InitPos.open(out_dir + "/spring_init_pos.txt", std::ios::trunc);
+    // }
 
     // Call the function to write headers
     WriteHeaders(spring_InitPos, myFile, extraWheelInfo, sysMBS);
